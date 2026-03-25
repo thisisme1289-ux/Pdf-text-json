@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>MCQ Engine — SambaNova</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+:root{
+  --bg:#0a0a0f;--surface:#111118;--s2:#18181f;--border:#2a2a38;
+  --accent:#7c6dfa;--a2:#fa6d8a;--a3:#6dfabc;
+  --text:#eeeef5;--muted:#7070a0;
+  --ok:#1a3a2a;--ok-b:#2ecc71;--bad:#3a1a1a;--bad-b:#e74c3c;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;top:-200px;left:50%;transform:translateX(-50%);width:800px;height:500px;background:radial-gradient(ellipse,rgba(124,109,250,.12) 0%,transparent 70%);pointer-events:none;z-index:0}
+
+/* HEADER */
+header{position:relative;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:16px 34px;border-bottom:1px solid var(--border);backdrop-filter:blur(10px);background:rgba(10,10,15,.88)}
+.logo{display:flex;align-items:center;gap:11px}
+.logo-icon{width:33px;height:33px;background:linear-gradient(135deg,var(--accent),var(--a2));border-radius:9px;display:grid;place-items:center;font-size:15px}
+.logo-text{font-family:'Syne',sans-serif;font-weight:800;font-size:16px;letter-spacing:-.5px}
+.logo-text span{color:var(--accent)}
+.badge{font-family:'DM Mono',monospace;font-size:10px;padding:3px 9px;background:rgba(124,109,250,.15);border:1px solid rgba(124,109,250,.3);border-radius:20px;color:var(--accent)}
+
+/* MAIN */
+main{position:relative;z-index:1;max-width:920px;margin:0 auto;padding:32px 20px 80px}
+
+/* HERO */
+.hero{text-align:center;padding:36px 0 30px}
+.hero h1{font-family:'Syne',sans-serif;font-size:clamp(26px,4.5vw,46px);font-weight:800;line-height:1.1;letter-spacing:-1.5px;background:linear-gradient(135deg,#fff 30%,var(--accent) 70%,var(--a2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:10px}
+.hero p{color:var(--muted);font-size:14px;font-weight:300;max-width:460px;margin:0 auto;line-height:1.7}
+
+/* PANEL */
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:15px;padding:20px 22px;margin-bottom:16px}
+.ptitle{font-family:'Syne',sans-serif;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.ptitle::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* GRID */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+.g4{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:13px}
+.sa{grid-column:1/-1}
+.s2{grid-column:span 2}
+@media(max-width:600px){.g2,.g4{grid-template-columns:1fr 1fr}}
+@media(max-width:380px){.g2,.g4{grid-template-columns:1fr}}
+
+/* FIELD */
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-size:10px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.8px}
+.field input,.field select{background:var(--s2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;padding:8px 11px;outline:none;transition:border-color .2s;width:100%}
+.field input:focus,.field select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(124,109,250,.1)}
+.field input::placeholder{color:var(--muted)}
+.field select option{background:#18181f}
+
+/* UPLOAD */
+.upload-zone{border:2px dashed var(--border);border-radius:15px;padding:36px 24px;text-align:center;cursor:pointer;transition:all .3s;position:relative;overflow:hidden;background:var(--surface);margin-bottom:16px}
+.upload-zone::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(124,109,250,.05),rgba(250,109,138,.05));opacity:0;transition:opacity .3s;pointer-events:none}
+.upload-zone:hover,.upload-zone.drag-over{border-color:var(--accent);transform:translateY(-2px)}
+.upload-zone:hover::before,.upload-zone.drag-over::before{opacity:1}
+.upload-icon{font-size:32px;margin-bottom:9px;display:block}
+.upload-zone h2{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;margin-bottom:5px}
+.upload-zone p{color:var(--muted);font-size:12px;margin-bottom:14px}
+.ubtn{display:inline-flex;align-items:center;gap:7px;padding:8px 17px;background:rgba(124,109,250,.15);border:1px solid rgba(124,109,250,.4);border-radius:8px;color:var(--accent);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:all .2s}
+.ubtn:hover{background:rgba(124,109,250,.25)}
+
+/* FILE INFO */
+.file-info{display:none;align-items:center;gap:11px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:14px}
+.file-info.visible{display:flex}
+.ficon{width:30px;height:30px;background:linear-gradient(135deg,#e74c3c,#c0392b);border-radius:7px;display:grid;place-items:center;font-size:13px;flex-shrink:0}
+.fdet{flex:1;min-width:0}
+.fname{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fmeta{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace}
+.fremove{background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px;padding:3px;transition:color .2s}
+.fremove:hover{color:var(--a2)}
+
+/* GENERATE BTN */
+#gbtn{width:100%;padding:13px;background:linear-gradient(135deg,var(--accent),#9b8aff);border:none;border-radius:12px;color:#fff;font-family:'Syne',sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:all .3s;display:flex;align-items:center;justify-content:center;gap:9px;box-shadow:0 8px 24px rgba(124,109,250,.28);margin-bottom:24px}
+#gbtn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 12px 32px rgba(124,109,250,.42)}
+#gbtn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+
+/* PROGRESS */
+.prog-sec{display:none;margin-bottom:24px}
+.prog-sec.on{display:block}
+.prog-row{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:7px}
+.prog-track{height:4px;background:var(--s2);border-radius:99px;overflow:hidden}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--a2));border-radius:99px;width:0%;transition:width .4s ease}
+.slog{margin-top:8px;font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;min-height:14px}
+
+/* RESULTS HEADER */
+.rhead{display:none;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:9px}
+.rhead.on{display:flex}
+.rtitle{font-family:'Syne',sans-serif;font-size:17px;font-weight:700}
+.rcnt{font-family:'DM Mono',monospace;font-size:11px;color:var(--accent);background:rgba(124,109,250,.1);border:1px solid rgba(124,109,250,.2);padding:3px 10px;border-radius:20px}
+.exbtn{padding:6px 13px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:5px}
+.exbtn:hover{border-color:var(--a3);color:var(--a3)}
+
+/* CHAPTER */
+.chap-sec{margin-bottom:24px}
+.chap-hdr{display:flex;align-items:center;gap:10px;margin-bottom:11px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:10px}
+.cid{font-family:'DM Mono',monospace;font-size:10px;padding:3px 8px;background:rgba(124,109,250,.12);border:1px solid rgba(124,109,250,.25);border-radius:6px;color:var(--accent);flex-shrink:0}
+.cname{font-family:'Syne',sans-serif;font-size:13px;font-weight:600;flex:1}
+.ccnt{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;flex-shrink:0}
+
+/* CARD */
+.mcq-grid{display:flex;flex-direction:column;gap:11px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:13px;overflow:hidden;transition:all .3s;animation:cardIn .35s ease both}
+@keyframes cardIn{from{opacity:0;transform:translateY(11px)}to{opacity:1;transform:translateY(0)}}
+.card:hover{border-color:rgba(124,109,250,.28);box-shadow:0 4px 18px rgba(0,0,0,.28)}
+
+.card-hdr{display:flex;align-items:flex-start;gap:12px;padding:15px 19px 11px}
+.qid{font-family:'DM Mono',monospace;font-size:10px;color:var(--accent);background:rgba(124,109,250,.1);border:1px solid rgba(124,109,250,.2);border-radius:6px;padding:2px 7px;flex-shrink:0;margin-top:2px;white-space:nowrap}
+.qtxt{font-size:13px;font-weight:500;line-height:1.65;flex:1}
+
+.card-meta{display:flex;gap:6px;flex-wrap:wrap;padding:0 19px 11px}
+.mt{font-size:10px;font-family:'DM Mono',monospace;padding:2px 7px;border-radius:4px}
+.de{background:rgba(46,204,113,.1);color:#2ecc71;border:1px solid rgba(46,204,113,.2)}
+.dm{background:rgba(241,196,15,.1);color:#f1c40f;border:1px solid rgba(241,196,15,.2)}
+.dh{background:rgba(231,76,60,.1);color:#e74c3c;border:1px solid rgba(231,76,60,.2)}
+.ml{background:rgba(124,109,250,.1);color:var(--accent);border:1px solid rgba(124,109,250,.2)}
+.mt2{background:rgba(109,250,188,.08);color:var(--a3);border:1px solid rgba(109,250,188,.15)}
+
+.opts{padding:0 19px 4px;display:flex;flex-direction:column;gap:6px}
+.opt{display:flex;align-items:flex-start;gap:10px;padding:9px 12px;border-radius:8px;border:1px solid var(--border);background:var(--s2);cursor:pointer;transition:all .2s;font-size:12px;line-height:1.5}
+.opt:hover{border-color:rgba(124,109,250,.4);background:rgba(124,109,250,.05)}
+.opt.correct{background:var(--ok);border-color:var(--ok-b);color:#2ecc71}
+.opt.wrong{background:var(--bad);border-color:var(--bad-b);color:#e74c3c}
+.olbl{font-family:'DM Mono',monospace;font-size:10px;padding:2px 5px;border-radius:4px;background:rgba(255,255,255,.06);flex-shrink:0;margin-top:1px}
+.opt.correct .olbl{background:rgba(46,204,113,.2)}
+.opt.wrong .olbl{background:rgba(231,76,60,.2)}
+
+.expl{display:none;margin:0 19px 15px;padding:10px 12px;background:rgba(109,250,188,.05);border:1px solid rgba(109,250,188,.13);border-radius:8px;font-size:12px;color:#a0f0cc;line-height:1.7}
+.expl.on{display:block}
+.expl strong{display:block;font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--a3);margin-bottom:4px}
+
+.card-foot{padding:11px 19px 15px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--border);margin-top:9px}
+.rbtn{font-size:11px;font-weight:500;color:var(--accent);background:rgba(124,109,250,.1);border:1px solid rgba(124,109,250,.22);border-radius:6px;padding:5px 12px;cursor:pointer;transition:all .2s;font-family:'DM Sans',sans-serif}
+.rbtn:hover:not(:disabled){background:rgba(124,109,250,.2)}
+.rbtn:disabled{opacity:.4;cursor:default}
+
+/* ERROR */
+.errbox{display:none;background:rgba(231,76,60,.07);border:1px solid rgba(231,76,60,.22);border-radius:10px;padding:12px 16px;color:#ff8a80;font-size:13px;margin-bottom:14px}
+.errbox.on{display:flex;gap:9px;align-items:flex-start}
+
+/* SPINNER */
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin{width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;flex-shrink:0}
+
+/* EMPTY */
+.empty{text-align:center;padding:52px 20px;color:var(--muted)}
+.empty .bi{font-size:40px;display:block;margin-bottom:11px;opacity:.3}
+
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">⚡</div>
+    <div class="logo-text">MCQ <span>Engine</span></div>
+  </div>
+  <span class="badge">SAMBANOVA POWERED</span>
+</header>
+
+<main>
+  <div class="hero">
+    <h1>Turn PDFs into<br/>Perfect MCQ Datasets</h1>
+    <p>Upload any exam paper — CUET, NEET, JEE, custom papers — and generate structured MCQs grouped by chapter.</p>
+  </div>
+
+  <!-- API Config -->
+  <div class="panel">
+    <div class="ptitle">⚙ API Configuration</div>
+    <div class="g2">
+      <div class="field sa">
+        <label>SambaNova API Key</label>
+        <input type="password" id="api-key" placeholder="samba-xxxxxxxxxxxxxxxx" autocomplete="off"/>
+      </div>
+      <div class="field">
+        <label>Model</label>
+        <select id="model">
+          <option value="Meta-Llama-3.3-70B-Instruct">Llama 3.3 70B (Recommended)</option>
+          <option value="DeepSeek-V3-0324">DeepSeek V3-0324</option>
+          <option value="DeepSeek-R1-0528">DeepSeek R1 (Reasoning)</option>
+          <option value="Meta-Llama-3.1-8B-Instruct">Llama 3.1 8B (Fast)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Max Questions</label>
+        <input type="number" id="maxq" value="20" min="1" max="200"/>
+      </div>
+    </div>
+  </div>
+
+  <!-- Metadata -->
+  <div class="panel">
+    <div class="ptitle">📋 Dataset Metadata <span style="font-size:10px;font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(used in exported JSON)</span></div>
+    <div class="g4">
+      <div class="field s2">
+        <label>Subject Name</label>
+        <input type="text" id="subname" placeholder="e.g. Business Studies"/>
+      </div>
+      <div class="field">
+        <label>Subject Code</label>
+        <input type="text" id="subcode" placeholder="e.g. BS" maxlength="6"/>
+      </div>
+      <div class="field">
+        <label>Part / Exam</label>
+        <input type="text" id="partlbl" placeholder="e.g. CUET 2025"/>
+      </div>
+    </div>
+  </div>
+
+  <!-- Upload -->
+  <div class="upload-zone" id="uz">
+    <span class="upload-icon">📄</span>
+    <h2>Drop your PDF here</h2>
+    <p>Exam papers, question banks, CUET/NEET/JEE papers — any PDF works</p>
+    <button class="ubtn" type="button" id="cfb">📂 Choose PDF File</button>
+    <input type="file" id="fi" accept=".pdf" style="display:none"/>
+  </div>
+
+  <div class="file-info" id="finfo">
+    <div class="ficon">📄</div>
+    <div class="fdet">
+      <div class="fname" id="fn">—</div>
+      <div class="fmeta" id="fm">—</div>
+    </div>
+    <button class="fremove" id="frm">✕</button>
+  </div>
+
+  <div class="errbox" id="ebox"><span>⚠</span><span id="etxt"></span></div>
+
+  <button id="gbtn" disabled>
+    <span id="btxt">⚡ Generate MCQ Dataset</span>
+  </button>
+
+  <div class="prog-sec" id="psec">
+    <div class="prog-row">
+      <span id="plbl">Processing…</span>
+      <span id="ppct">0%</span>
+    </div>
+    <div class="prog-track"><div class="prog-fill" id="pfill"></div></div>
+    <div class="slog" id="slog"></div>
+  </div>
+
+  <div class="rhead" id="rhead">
+    <div style="display:flex;align-items:center;gap:10px">
+      <span class="rtitle">Generated Dataset</span>
+      <span class="rcnt" id="rcnt">0 MCQs</span>
+    </div>
+    <button class="exbtn" id="exbtn">⬇ Export JSON</button>
+  </div>
+
+  <div id="out">
+    <div class="empty" id="emp">
+      <span class="bi">🧩</span>
+      <p>Upload a PDF and configure your API key to get started</p>
+    </div>
+  </div>
+</main>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+const $=id=>document.getElementById(id);
+let pdfFile=null, chapData=[], gNum=0;
+
+// ── Upload wiring ──
+const uz=$('uz'), fi=$('fi');
+uz.addEventListener('dragover',e=>{e.preventDefault();uz.classList.add('drag-over')});
+uz.addEventListener('dragleave',()=>uz.classList.remove('drag-over'));
+uz.addEventListener('drop',e=>{
+  e.preventDefault();uz.classList.remove('drag-over');
+  const f=e.dataTransfer.files[0];
+  f&&f.type==='application/pdf'?handleFile(f):showErr('Please drop a valid PDF.');
+});
+uz.addEventListener('click',()=>fi.click());
+$('cfb').addEventListener('click',e=>{e.stopPropagation();fi.click()});
+fi.addEventListener('change',e=>{if(e.target.files[0])handleFile(e.target.files[0])});
+$('frm').addEventListener('click',()=>{pdfFile=null;$('finfo').classList.remove('visible');fi.value='';chkReady()});
+$('api-key').addEventListener('input',chkReady);
+
+async function handleFile(f){
+  hideErr();pdfFile=f;$('fn').textContent=f.name;$('fm').textContent=`${(f.size/1024).toFixed(1)} KB · loading…`;
+  $('finfo').classList.add('visible');
+  try{
+    const ab=await f.arrayBuffer();
+    const pdf=await pdfjsLib.getDocument({data:ab}).promise;
+    $('fm').textContent=`${(f.size/1024).toFixed(1)} KB · ${pdf.numPages} pages`;
+  }catch{$('fm').textContent=`${(f.size/1024).toFixed(1)} KB`}
+  chkReady();
+}
+function chkReady(){$('gbtn').disabled=!(pdfFile&&$('api-key').value.trim().length>10)}
+
+// ── PDF text extraction ──
+// Extracts text page-by-page preserving structure with page markers
+async function extractText(file,maxPages=60){
+  const ab=await file.arrayBuffer();
+  const pdf=await pdfjsLib.getDocument({data:ab}).promise;
+  const n=Math.min(pdf.numPages,maxPages);
+  const pages=[];
+  for(let i=1;i<=n;i++){
+    const pg=await pdf.getPage(i);
+    const ct=await pg.getTextContent();
+    // Group items by vertical position to reconstruct lines
+    const lines={};
+    ct.items.forEach(item=>{
+      const y=Math.round(item.transform[5]);
+      if(!lines[y])lines[y]=[];
+      lines[y].push({x:item.transform[4],str:item.str});
+    });
+    const sortedY=Object.keys(lines).map(Number).sort((a,b)=>b-a);
+    const pageText=sortedY.map(y=>
+      lines[y].sort((a,b)=>a.x-b.x).map(i=>i.str).join(' ').trim()
+    ).filter(l=>l.length>0).join('\n');
+    pages.push(`=== PAGE ${i} ===\n${pageText}`);
+  }
+  return pages.join('\n\n');
+}
+
+// ── Smart chunking: split on question boundaries ──
+function smartChunk(text,maxChunk=5000){
+  // Try to split on "Q. No" / "Q." / "Q " patterns
+  const qPattern=/(?=Q[\.\s](?:No\.?\s*)?\d+[\.\s])/gi;
+  const parts=text.split(qPattern).filter(p=>p.trim().length>20);
+  if(parts.length<=1) return fallbackChunk(text,maxChunk);
+
+  // Group parts into chunks without exceeding maxChunk
+  const chunks=[];
+  let cur='';
+  for(const p of parts){
+    if((cur+p).length>maxChunk&&cur.length>0){
+      chunks.push(cur.trim());cur=p;
+    }else{cur+='\n\n'+p}
+  }
+  if(cur.trim()) chunks.push(cur.trim());
+  return chunks;
+}
+
+function fallbackChunk(text,size=5000,overlap=500){
+  const chunks=[];let s=0;
+  while(s<text.length){
+    chunks.push(text.slice(s,s+size));
+    s+=size-overlap;
+    if(s>=text.length)break;
+  }
+  return chunks;
+}
+
+// ── API call ──
+async function callAPI(apiKey,model,system,user){
+  const res=await fetch('https://api.sambanova.ai/v1/chat/completions',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},
+    body:JSON.stringify({
+      model,max_tokens:4096,temperature:0.15,
+      messages:[{role:'system',content:system},{role:'user',content:user}]
+    })
+  });
+  if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.error?.message||`API ${res.status}`)}
+  return (await res.json()).choices[0].message.content;
+}
+
+// ── System prompt — handles CUET/exam format ──
+function buildPrompt(code){
+  return `You are an expert MCQ extraction engine for Indian competitive exam papers (CUET, NEET, JEE, CA, etc.).
+
+Extract every MCQ from the given text. The input may be in various formats:
+- "Q. No1." or "Q. No. 1" or "Q1." or "Q 1." followed by question text
+- Options numbered as "1.", "2.", "3.", "4." OR lettered as "A.", "B.", "C.", "D." OR "(A)", "(B)", "(C)", "(D)"
+- "Correct Answer:" line may appear after options
+- "Solution:" or "Quick Tip" sections appear after — these must be stripped from question text
+
+CRITICAL: Always detect the correct answer from the "Correct Answer:" line if present.
+
+Return ONLY a valid JSON array. No markdown, no backticks, no text outside the JSON.
+
+Schema:
+[
+  {
+    "chapter_id": "${code}01",
+    "chapter": "Detected chapter/topic name (or 'General' if unknown)",
+    "questions": [
+      {
+        "id": "${code}01Q01",
+        "type": "definition",
+        "level": "L1",
+        "difficulty": "easy",
+        "question": "Clean question text only — no option text, no solution",
+        "options": ["Option A text", "Option B text", "Option C text", "Option D text"],
+        "correct": 0,
+        "explanation": "1-2 line explanation"
+      }
+    ]
+  }
+]
+
+TYPE rules:
+- "definition"      → defines a concept/term
+- "conceptual"      → tests understanding of a concept
+- "application"     → scenario/applied (e.g. Manju, AMPM company stories)
+- "numerical"       → involves numbers/calculation
+- "fill_blank"      → "......... is/are ..." format
+- "not_type"        → "Which is NOT..." questions
+- "assertion_reason"→ "Assertion (A): ... Reason (R): ..." format
+- "match_list"      → "Match List-I with List-II" format
+- "sequence"        → "Arrange in order" format
+
+LEVEL: L1 (memory/recall), L2 (understanding), L3 (application/tricky)
+DIFFICULTY: easy, medium, hard
+
+RULES:
+- Extract ALL questions found, don't skip any
+- Exactly 4 options per question — clean text only, strip "1.", "A.", "(A)" prefixes
+- "correct" = 0-based index of correct option (0,1,2,3)
+- For "Correct Answer: 1. Rule" → the correct is index 0 (first option)
+- For "Correct Answer: 2. ..." → correct is index 1, etc.
+- IDs: chapter_id = ${code}+2-digit, question id = chapter_id+Q+2-digit
+- Group by topic if detectable, else use "${code}01" / "General"
+- Strip page numbers, headers, footers, "Quick Tip", "Solution:", "Step 1:", "Step 2:", "Final Answer:" from question text
+- Output ONLY the JSON array starting with [`;
+}
+
+// ── Main generate ──
+$('gbtn').addEventListener('click',async()=>{
+  hideErr();chapData=[];gNum=0;
+  $('out').innerHTML='';$('emp') && ($('emp').style.display='none');
+  $('rhead').classList.remove('on');
+  $('psec').classList.add('on');
+  $('gbtn').disabled=true;
+  $('btxt').innerHTML='<div class="spin"></div> Processing…';
+
+  const apiKey=$('api-key').value.trim();
+  const model=$('model').value;
+  const maxQ=parseInt($('maxq').value)||20;
+  const subCode=($('subcode').value.trim()||'XX').toUpperCase().replace(/\s/g,'');
+
+  try{
+    setP(5,'Extracting text from PDF…','');
+    const raw=await extractText(pdfFile);
+    if(!raw||raw.length<100) throw new Error('Could not extract readable text. Please use a text-based (not scanned) PDF.');
+
+    setP(15,'Splitting into question chunks…',`${raw.length.toLocaleString()} chars extracted`);
+    const chunks=smartChunk(raw,5000);
+    setLog(`Detected ${chunks.length} chunk(s) to process`);
+
+    const sysP=buildPrompt(subCode);
+    let totalQ=0;
+    const maxChunks=Math.min(chunks.length,Math.ceil(maxQ/3)+4);
+
+    for(let i=0;i<maxChunks;i++){
+      if(totalQ>=maxQ)break;
+      const pct=20+Math.round(((i+1)/maxChunks)*65);
+      setP(pct,`Extracting MCQs… (chunk ${i+1}/${maxChunks})`,`${totalQ} questions extracted so far`);
+
+      try{
+        const raw2=await callAPI(apiKey,model,sysP,
+          `Extract all MCQs from this exam paper text. Find every question:\n\n${chunks[i]}`);
+        const parsed=parseJSON(raw2);
+        if(!Array.isArray(parsed))continue;
+
+        for(const chapObj of parsed){
+          if(!chapObj||!Array.isArray(chapObj.questions))continue;
+          const chapId=chapObj.chapter_id||`${subCode}01`;
+          const chapName=chapObj.chapter||'General';
+
+          let chap=chapData.find(c=>c.chapter_id===chapId);
+          if(!chap){
+            chap={chapter_id:chapId,chapter:chapName,questions:[]};
+            chapData.push(chap);
+            renderChap(chap);
+          }
+          for(const q of chapObj.questions){
+            if(totalQ>=maxQ)break;
+            if(!validQ(q))continue;
+            q.id=`${chapId}Q${String(chap.questions.length+1).padStart(2,'0')}`;
+            chap.questions.push(q);
+            totalQ++;gNum++;
+            appendCard(q,gNum,chapId);
+            updateHead(totalQ);
+          }
+        }
+      }catch(ce){
+        console.warn(`Chunk ${i+1}:`,ce.message);
+        setLog(`⚠ Chunk ${i+1} skipped: ${ce.message}`);
+        await new Promise(r=>setTimeout(r,800));
+      }
+    }
+
+    setP(100,'Done!',`${totalQ} questions across ${chapData.length} chapter(s)`);
+    if(totalQ===0){
+      showErr('No MCQs found. Make sure the PDF is text-based and contains question content.');
+      $('out').innerHTML='<div class="empty"><span class="bi" style="opacity:.3">🔍</span><p>No questions found. Try a different PDF or check that it contains MCQ content.</p></div>';
+    }
+  }catch(err){
+    showErr(err.message);
+    if(!chapData.length)
+      $('out').innerHTML=`<div class="empty"><span class="bi" style="opacity:.3">❌</span><p>${esc(err.message)}</p></div>`;
+  }finally{
+    $('gbtn').disabled=false;$('btxt').textContent='⚡ Generate MCQ Dataset';chkReady();
+  }
+});
+
+function renderChap(ch){
+  const s=document.createElement('div');
+  s.className='chap-sec';s.id=`cs-${ch.chapter_id}`;
+  s.innerHTML=`
+    <div class="chap-hdr">
+      <span class="cid">${esc(ch.chapter_id)}</span>
+      <span class="cname">${esc(ch.chapter)}</span>
+      <span class="ccnt" id="cc-${ch.chapter_id}">0 Qs</span>
+    </div>
+    <div class="mcq-grid" id="g-${ch.chapter_id}"></div>`;
+  $('out').appendChild(s);
+}
+
+const LBL=['A','B','C','D'];
+
+function appendCard(q,n,chapId){
+  const grid=$(`g-${chapId}`);if(!grid)return;
+  const d=(q.difficulty||'medium').toLowerCase();
+  const dc=d==='easy'?'de':d==='hard'?'dh':'dm';
+  const card=document.createElement('div');
+  card.className='card';
+  card.style.animationDelay=`${Math.min((n-1)*.04,.5)}s`;
+  card.innerHTML=`
+    <div class="card-hdr">
+      <span class="qid">${esc(q.id)}</span>
+      <div class="qtxt">${esc(q.question)}</div>
+    </div>
+    <div class="card-meta">
+      <span class="mt ${dc}">${d}</span>
+      <span class="mt ml">${esc((q.level||'L2').toUpperCase())}</span>
+      <span class="mt mt2">${esc((q.type||'conceptual').replace(/_/g,'-'))}</span>
+    </div>
+    <div class="opts">
+      ${q.options.map((o,i)=>`
+        <div class="opt" data-i="${i}" data-c="${q.correct}">
+          <span class="olbl">${LBL[i]}</span>
+          <span>${esc(o)}</span>
+        </div>`).join('')}
+    </div>
+    <div class="expl" id="ex-${n}">
+      <strong>💡 Explanation</strong>${esc(q.explanation||'—')}
+    </div>
+    <div class="card-foot">
+      <button class="rbtn" id="rb-${n}">Show Answer</button>
+      <span style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace">
+        Ans: <strong style="color:var(--accent)">${LBL[q.correct]}</strong> (hidden)
+      </span>
+    </div>`;
+
+  const reveal=()=>{
+    card.querySelectorAll('.opt').forEach(o=>{
+      if(parseInt(o.dataset.i)===q.correct)o.classList.add('correct');
+    });
+    const e=$(`ex-${n}`);if(e)e.classList.add('on');
+    const rb=$(`rb-${n}`);if(rb){rb.textContent='✓ Revealed';rb.disabled=true}
+  };
+  card.querySelectorAll('.opt').forEach(opt=>{
+    opt.addEventListener('click',()=>{
+      const idx=parseInt(opt.dataset.i);
+      card.querySelectorAll('.opt').forEach(o=>{
+        const oi=parseInt(o.dataset.i);
+        if(oi===q.correct)o.classList.add('correct');
+        else if(oi===idx)o.classList.add('wrong');
+      });
+      const e=$(`ex-${n}`);if(e)e.classList.add('on');
+      const rb=$(`rb-${n}`);if(rb){rb.textContent='✓ Revealed';rb.disabled=true}
+    });
+  });
+  const rb=card.querySelector('.rbtn');
+  if(rb)rb.addEventListener('click',reveal);
+  grid.appendChild(card);
+
+  const ch=chapData.find(c=>c.chapter_id===chapId);
+  const cc=$(`cc-${chapId}`);
+  if(cc&&ch)cc.textContent=`${ch.questions.length} Q${ch.questions.length!==1?'s':''}`;
+}
+
+function updateHead(n){
+  $('rhead').classList.add('on');
+  $('rcnt').textContent=`${n} MCQ${n!==1?'s':''}`;
+}
+function setP(pct,lbl,log){
+  $('pfill').style.width=pct+'%';$('plbl').textContent=lbl;$('ppct').textContent=pct+'%';
+  if(log)$('slog').textContent=log;
+}
+function setLog(m){$('slog').textContent=m}
+function showErr(m){$('ebox').classList.add('on');$('etxt').textContent=m}
+function hideErr(){$('ebox').classList.remove('on')}
+
+function parseJSON(text){
+  let c=text.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
+  // Find the outermost JSON array
+  let depth=0,start=-1,end=-1;
+  for(let i=0;i<c.length;i++){
+    if(c[i]==='['&&start===-1){start=i;depth=1}
+    else if(c[i]==='['&&start!==-1)depth++;
+    else if(c[i]===']'&&start!==-1){depth--;if(depth===0){end=i;break}}
+  }
+  if(start!==-1&&end!==-1)c=c.slice(start,end+1);
+  return JSON.parse(c);
+}
+function validQ(q){
+  return q&&typeof q.question==='string'&&q.question.trim().length>5&&
+    Array.isArray(q.options)&&q.options.length===4&&
+    q.options.every(o=>typeof o==='string'&&o.trim().length>0)&&
+    typeof q.correct==='number'&&q.correct>=0&&q.correct<=3;
+}
+function esc(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Export ──
+$('exbtn').addEventListener('click',()=>{
+  if(!chapData.length)return;
+  const total=chapData.reduce((a,c)=>a+c.questions.length,0);
+  const sc=($('subcode').value.trim()||'XX').toUpperCase();
+  const out={
+    subject:$('subname').value.trim()||'Unknown',
+    subject_code:sc,
+    part:$('partlbl').value.trim()||'Part 1',
+    total_questions_this_part:total,
+    chapters:chapData
+  };
+  const blob=new Blob([JSON.stringify(out,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=`${sc.toLowerCase()}-mcqs-${Date.now()}.json`;
+  a.click();URL.revokeObjectURL(url);
+});
+</script>
+</body>
+</html>
