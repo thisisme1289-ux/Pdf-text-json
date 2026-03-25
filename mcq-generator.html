@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MCQ Engine — SambaNova</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --surface2: #18181f;
+    --border: #2a2a38;
+    --accent: #7c6dfa;
+    --accent2: #fa6d8a;
+    --accent3: #6dfabc;
+    --text: #eeeef5;
+    --muted: #7070a0;
+    --correct: #1a3a2a;
+    --correct-border: #2ecc71;
+    --wrong: #3a1a1a;
+    --wrong-border: #e74c3c;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Ambient glow */
+  body::before {
+    content: '';
+    position: fixed;
+    top: -200px; left: 50%;
+    transform: translateX(-50%);
+    width: 800px; height: 500px;
+    background: radial-gradient(ellipse, rgba(124,109,250,0.12) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── HEADER ── */
+  header {
+    position: relative; z-index: 10;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px 40px;
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(10px);
+    background: rgba(10,10,15,0.8);
+  }
+
+  .logo {
+    display: flex; align-items: center; gap: 12px;
+  }
+
+  .logo-icon {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 10px;
+    display: grid; place-items: center;
+    font-size: 18px;
+  }
+
+  .logo-text {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 18px;
+    letter-spacing: -0.5px;
+  }
+
+  .logo-text span { color: var(--accent); }
+
+  .badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    padding: 4px 10px;
+    background: rgba(124,109,250,0.15);
+    border: 1px solid rgba(124,109,250,0.3);
+    border-radius: 20px;
+    color: var(--accent);
+    letter-spacing: 0.5px;
+  }
+
+  /* ── MAIN ── */
+  main {
+    position: relative; z-index: 1;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  /* ── HERO ── */
+  .hero {
+    text-align: center;
+    padding: 48px 0 40px;
+  }
+
+  .hero h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(32px, 5vw, 52px);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -1.5px;
+    background: linear-gradient(135deg, #fff 30%, var(--accent) 70%, var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 14px;
+  }
+
+  .hero p {
+    color: var(--muted);
+    font-size: 16px;
+    font-weight: 300;
+    max-width: 480px;
+    margin: 0 auto;
+    line-height: 1.7;
+  }
+
+  /* ── CONFIG PANEL ── */
+  .config-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+    margin-bottom: 24px;
+  }
+
+  .config-panel h3 {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 20px;
+  }
+
+  .config-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  @media (max-width: 600px) {
+    .config-grid { grid-template-columns: 1fr; }
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .field label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+  }
+
+  .field input, .field select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    padding: 10px 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .field input:focus, .field select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(124,109,250,0.1);
+  }
+
+  .field input::placeholder { color: var(--muted); }
+
+  .field select option { background: var(--surface2); }
+
+  /* ── UPLOAD ZONE ── */
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: 16px;
+    padding: 48px 32px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    background: var(--surface);
+    margin-bottom: 24px;
+  }
+
+  .upload-zone::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(124,109,250,0.05), rgba(250,109,138,0.05));
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .upload-zone:hover, .upload-zone.drag-over {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+  }
+
+  .upload-zone:hover::before, .upload-zone.drag-over::before {
+    opacity: 1;
+  }
+
+  .upload-icon {
+    font-size: 40px;
+    margin-bottom: 16px;
+    display: block;
+  }
+
+  .upload-zone h2 {
+    font-family: 'Syne', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .upload-zone p {
+    color: var(--muted);
+    font-size: 14px;
+    margin-bottom: 20px;
+  }
+
+  .upload-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 22px;
+    background: rgba(124,109,250,0.15);
+    border: 1px solid rgba(124,109,250,0.4);
+    border-radius: 10px;
+    color: var(--accent);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .upload-btn:hover {
+    background: rgba(124,109,250,0.25);
+  }
+
+  #file-input { display: none; }
+
+  /* file info bar */
+  .file-info {
+    display: none;
+    align-items: center;
+    gap: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin-bottom: 20px;
+  }
+
+  .file-info.visible { display: flex; }
+
+  .file-icon {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, #e74c3c, #c0392b);
+    border-radius: 8px;
+    display: grid; place-items: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  .file-details { flex: 1; min-width: 0; }
+
+  .file-name {
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .file-meta {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+  }
+
+  .remove-file {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 18px;
+    padding: 4px;
+    transition: color 0.2s;
+  }
+
+  .remove-file:hover { color: var(--accent2); }
+
+  /* ── GENERATE BTN ── */
+  #generate-btn {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, var(--accent), #9b8aff);
+    border: none;
+    border-radius: 14px;
+    color: #fff;
+    font-family: 'Syne', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    letter-spacing: 0.3px;
+    box-shadow: 0 8px 32px rgba(124,109,250,0.3);
+    margin-bottom: 32px;
+  }
+
+  #generate-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(124,109,250,0.45);
+  }
+
+  #generate-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  /* ── PROGRESS ── */
+  .progress-section {
+    display: none;
+    margin-bottom: 32px;
+  }
+
+  .progress-section.visible { display: block; }
+
+  .progress-label {
+    display: flex; justify-content: space-between;
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  .progress-label span:first-child { font-weight: 500; }
+
+  .progress-bar-track {
+    height: 6px;
+    background: var(--surface2);
+    border-radius: 99px;
+    overflow: hidden;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 99px;
+    width: 0%;
+    transition: width 0.4s ease;
+  }
+
+  .status-log {
+    margin-top: 12px;
+    font-size: 12px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    min-height: 18px;
+  }
+
+  /* ── RESULTS HEADER ── */
+  .results-header {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+
+  .results-header.visible { display: flex; }
+
+  .results-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+  }
+
+  .results-count {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    color: var(--accent);
+    background: rgba(124,109,250,0.1);
+    border: 1px solid rgba(124,109,250,0.2);
+    padding: 4px 12px;
+    border-radius: 20px;
+  }
+
+  .export-btn {
+    padding: 8px 18px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex; align-items: center; gap: 6px;
+  }
+
+  .export-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* ── MCQ CARDS ── */
+  .mcq-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .mcq-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    transition: all 0.3s;
+    animation: cardIn 0.4s ease both;
+  }
+
+  @keyframes cardIn {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .mcq-card:hover {
+    border-color: rgba(124,109,250,0.3);
+    box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+  }
+
+  .card-header {
+    display: flex; align-items: flex-start; gap: 16px;
+    padding: 20px 24px 16px;
+  }
+
+  .q-num {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--accent);
+    background: rgba(124,109,250,0.12);
+    border: 1px solid rgba(124,109,250,0.2);
+    border-radius: 8px;
+    padding: 4px 10px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .q-text {
+    font-size: 15px;
+    font-weight: 500;
+    line-height: 1.6;
+    flex: 1;
+  }
+
+  .card-meta {
+    display: flex; gap: 8px; flex-wrap: wrap;
+    padding: 0 24px 16px;
+  }
+
+  .meta-tag {
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    padding: 3px 9px;
+    border-radius: 6px;
+    letter-spacing: 0.3px;
+  }
+
+  .meta-tag.difficulty-easy   { background: rgba(46,204,113,0.12); color: #2ecc71; border: 1px solid rgba(46,204,113,0.2); }
+  .meta-tag.difficulty-medium { background: rgba(241,196,15,0.12); color: #f1c40f; border: 1px solid rgba(241,196,15,0.2); }
+  .meta-tag.difficulty-hard   { background: rgba(231,76,60,0.12); color: #e74c3c; border: 1px solid rgba(231,76,60,0.2); }
+  .meta-tag.level { background: rgba(124,109,250,0.1); color: var(--accent); border: 1px solid rgba(124,109,250,0.2); }
+  .meta-tag.type { background: rgba(109,250,188,0.1); color: var(--accent3); border: 1px solid rgba(109,250,188,0.2); }
+
+  .options-list {
+    padding: 0 24px 4px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+
+  .option {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 11px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .option:hover { border-color: rgba(124,109,250,0.4); background: rgba(124,109,250,0.05); }
+
+  .option.correct {
+    background: var(--correct);
+    border-color: var(--correct-border);
+    color: #2ecc71;
+  }
+
+  .option.wrong {
+    background: var(--wrong);
+    border-color: var(--wrong-border);
+    color: #e74c3c;
+  }
+
+  .option-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 7px;
+    border-radius: 5px;
+    background: rgba(255,255,255,0.06);
+    flex-shrink: 0;
+    margin-top: 1px;
+    letter-spacing: 0.5px;
+  }
+
+  .option.correct .option-label { background: rgba(46,204,113,0.2); }
+  .option.wrong   .option-label { background: rgba(231,76,60,0.2); }
+
+  .card-footer {
+    padding: 16px 24px 20px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-top: 1px solid var(--border);
+    margin-top: 12px;
+  }
+
+  .reveal-btn {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--accent);
+    background: rgba(124,109,250,0.1);
+    border: 1px solid rgba(124,109,250,0.25);
+    border-radius: 8px;
+    padding: 7px 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  .reveal-btn:hover { background: rgba(124,109,250,0.2); }
+
+  .explanation {
+    display: none;
+    margin: 0 24px 20px;
+    padding: 14px 16px;
+    background: rgba(109,250,188,0.06);
+    border: 1px solid rgba(109,250,188,0.15);
+    border-radius: 10px;
+    font-size: 13px;
+    color: #a0f0cc;
+    line-height: 1.7;
+  }
+
+  .explanation.visible { display: block; }
+
+  .explanation strong {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--accent3);
+    margin-bottom: 6px;
+  }
+
+  /* ── ERROR ── */
+  .error-box {
+    display: none;
+    background: rgba(231,76,60,0.08);
+    border: 1px solid rgba(231,76,60,0.25);
+    border-radius: 12px;
+    padding: 16px 20px;
+    color: #ff8a80;
+    font-size: 14px;
+    margin-bottom: 20px;
+  }
+
+  .error-box.visible { display: flex; gap: 10px; align-items: flex-start; }
+
+  /* ── LOADING SPINNER ── */
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .spinner {
+    width: 18px; height: 18px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    flex-shrink: 0;
+  }
+
+  /* ── EMPTY STATE ── */
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+  }
+
+  .empty-state .big-icon {
+    font-size: 48px;
+    display: block;
+    margin-bottom: 16px;
+    opacity: 0.4;
+  }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">⚡</div>
+    <div class="logo-text">MCQ <span>Engine</span></div>
+  </div>
+  <span class="badge">SAMBANOVA POWERED</span>
+</header>
+
+<main>
+  <!-- Hero -->
+  <div class="hero">
+    <h1>Turn PDFs into<br/>Perfect MCQs</h1>
+    <p>Upload any exam paper or study material and instantly generate structured multiple-choice questions with AI.</p>
+  </div>
+
+  <!-- Config Panel -->
+  <div class="config-panel">
+    <h3>⚙ Configuration</h3>
+    <div class="config-grid">
+      <div class="field" style="grid-column: 1 / -1;">
+        <label>SambaNova API Key</label>
+        <input type="password" id="api-key" placeholder="samba-xxxxxxxxxxxxxxxx" autocomplete="off" />
+      </div>
+      <div class="field">
+        <label>Model</label>
+        <select id="model-select">
+          <option value="Meta-Llama-3.3-70B-Instruct">Llama 3.3 70B (Recommended)</option>
+          <option value="DeepSeek-V3-0324">DeepSeek V3-0324</option>
+          <option value="DeepSeek-R1-0528">DeepSeek R1 (Reasoning)</option>
+          <option value="Meta-Llama-3.1-8B-Instruct">Llama 3.1 8B (Fast)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Max Questions</label>
+        <input type="number" id="max-questions" value="10" min="1" max="50" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Upload Zone -->
+  <div class="upload-zone" id="upload-zone">
+    <span class="upload-icon">📄</span>
+    <h2>Drop your PDF here</h2>
+    <p>Exam papers, textbook chapters, study notes — any PDF works</p>
+    <label class="upload-btn" for="file-input">
+      📂 Choose PDF File
+    </label>
+    <input type="file" id="file-input" accept=".pdf" />
+  </div>
+
+  <!-- File Info -->
+  <div class="file-info" id="file-info">
+    <div class="file-icon">📄</div>
+    <div class="file-details">
+      <div class="file-name" id="file-name">document.pdf</div>
+      <div class="file-meta" id="file-meta">— pages</div>
+    </div>
+    <button class="remove-file" id="remove-file" title="Remove">✕</button>
+  </div>
+
+  <!-- Error -->
+  <div class="error-box" id="error-box">
+    <span>⚠</span>
+    <span id="error-text"></span>
+  </div>
+
+  <!-- Generate Button -->
+  <button id="generate-btn" disabled>
+    <span id="btn-text">⚡ Generate MCQs</span>
+  </button>
+
+  <!-- Progress -->
+  <div class="progress-section" id="progress-section">
+    <div class="progress-label">
+      <span id="progress-label">Processing…</span>
+      <span id="progress-pct">0%</span>
+    </div>
+    <div class="progress-bar-track">
+      <div class="progress-bar-fill" id="progress-fill"></div>
+    </div>
+    <div class="status-log" id="status-log"></div>
+  </div>
+
+  <!-- Results Header -->
+  <div class="results-header" id="results-header">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <span class="results-title">Generated Questions</span>
+      <span class="results-count" id="results-count">0 MCQs</span>
+    </div>
+    <button class="export-btn" id="export-btn">⬇ Export JSON</button>
+  </div>
+
+  <!-- MCQ Grid -->
+  <div class="mcq-grid" id="mcq-grid">
+    <div class="empty-state" id="empty-state">
+      <span class="big-icon">🧩</span>
+      <p>Upload a PDF and configure your API key to get started</p>
+    </div>
+  </div>
+</main>
+
+<script>
+// ── PDF.js setup ──
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// ── State ──
+let pdfFile = null;
+let pdfPageCount = 0;
+let generatedMCQs = [];
+
+// ── DOM ──
+const uploadZone    = document.getElementById('upload-zone');
+const fileInput     = document.getElementById('file-input');
+const fileInfo      = document.getElementById('file-info');
+const fileName      = document.getElementById('file-name');
+const fileMeta      = document.getElementById('file-meta');
+const removeFile    = document.getElementById('remove-file');
+const generateBtn   = document.getElementById('generate-btn');
+const btnText       = document.getElementById('btn-text');
+const progressSec   = document.getElementById('progress-section');
+const progressFill  = document.getElementById('progress-fill');
+const progressLabel = document.getElementById('progress-label');
+const progressPct   = document.getElementById('progress-pct');
+const statusLog     = document.getElementById('status-log');
+const resultsHeader = document.getElementById('results-header');
+const resultsCount  = document.getElementById('results-count');
+const mcqGrid       = document.getElementById('mcq-grid');
+const emptyState    = document.getElementById('empty-state');
+const errorBox      = document.getElementById('error-box');
+const errorText     = document.getElementById('error-text');
+const exportBtn     = document.getElementById('export-btn');
+const apiKeyInput   = document.getElementById('api-key');
+
+// ── Upload Drag/Drop ──
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f && f.type === 'application/pdf') handleFile(f);
+  else showError('Please drop a valid PDF file.');
+});
+
+fileInput.addEventListener('change', e => {
+  if (e.target.files[0]) handleFile(e.target.files[0]);
+});
+
+removeFile.addEventListener('click', () => {
+  pdfFile = null;
+  fileInfo.classList.remove('visible');
+  fileInput.value = '';
+  checkReady();
+});
+
+async function handleFile(f) {
+  hideError();
+  pdfFile = f;
+  fileName.textContent = f.name;
+  fileMeta.textContent = `${(f.size / 1024).toFixed(1)} KB · loading…`;
+  fileInfo.classList.add('visible');
+
+  try {
+    const ab = await f.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
+    pdfPageCount = pdf.numPages;
+    fileMeta.textContent = `${(f.size / 1024).toFixed(1)} KB · ${pdfPageCount} pages`;
+  } catch {
+    fileMeta.textContent = `${(f.size / 1024).toFixed(1)} KB`;
+  }
+  checkReady();
+}
+
+apiKeyInput.addEventListener('input', checkReady);
+
+function checkReady() {
+  const ok = pdfFile !== null && apiKeyInput.value.trim().length > 10;
+  generateBtn.disabled = !ok;
+}
+
+// ── Extract PDF Text ──
+async function extractPdfText(file, maxPages = 30) {
+  const ab = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
+  const pages = Math.min(pdf.numPages, maxPages);
+  let text = '';
+  for (let i = 1; i <= pages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    text += content.items.map(s => s.str).join(' ') + '\n\n';
+  }
+  return text.trim();
+}
+
+// ── Chunk Text ──
+function chunkText(text, chunkSize = 3000, overlap = 200) {
+  const chunks = [];
+  let start = 0;
+  while (start < text.length) {
+    const end = Math.min(start + chunkSize, text.length);
+    chunks.push(text.slice(start, end));
+    start = end - overlap;
+    if (start >= text.length) break;
+  }
+  return chunks;
+}
+
+// ── SambaNova API Call ──
+async function callSambaNova(apiKey, model, systemPrompt, userContent) {
+  const res = await fetch('https://api.sambanova.ai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: 2048,
+      temperature: 0.3,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userContent }
+      ]
+    })
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error?.message || `API error ${res.status}`);
+  }
+
+  const data = await res.json();
+  return data.choices[0].message.content;
+}
+
+// ── System Prompt ──
+const SYSTEM_PROMPT = `You are an expert MCQ dataset generation engine. From the provided text, extract as many high-quality MCQs as possible (aim for 3-5 per chunk if content supports it).
+
+Return ONLY a valid JSON array. No markdown, no backticks, no explanation outside the array.
+
+Each MCQ object must follow this exact schema:
+{
+  "question": "Clean full question text",
+  "options": ["Option A", "Option B", "Option C", "Option D"],
+  "correct": 0,
+  "explanation": "Short clear explanation (1-2 lines)",
+  "type": "definition | application | assertion_reason | conceptual",
+  "difficulty": "easy | medium | hard",
+  "level": "L1 | L2 | L3"
+}
+
+Rules:
+- NEVER leave any field empty
+- Exactly 4 options per question
+- correct is a 0-based index (0, 1, 2, or 3)
+- No duplicate options
+- Fix OCR errors intelligently
+- Remove "Solution:", "Correct Answer:", answer keys from question text
+- If text has no extractable MCQ content, return []
+- L1=recall, L2=understanding, L3=application/tricky
+- Output ONLY the JSON array, starting with [ and ending with ]`;
+
+// ── Generate ──
+generateBtn.addEventListener('click', async () => {
+  hideError();
+  generatedMCQs = [];
+  mcqGrid.innerHTML = '';
+  emptyState.style.display = 'none';
+  resultsHeader.classList.remove('visible');
+  progressSec.classList.add('visible');
+  generateBtn.disabled = true;
+  btnText.innerHTML = '<div class="spinner"></div> Processing…';
+
+  const apiKey  = apiKeyInput.value.trim();
+  const model   = document.getElementById('model-select').value;
+  const maxQ    = parseInt(document.getElementById('max-questions').value) || 10;
+
+  try {
+    setProgress(5, 'Extracting text from PDF…', '');
+
+    const rawText = await extractPdfText(pdfFile);
+    if (!rawText || rawText.length < 50) throw new Error('Could not extract readable text from PDF. Try a text-based PDF.');
+
+    setProgress(15, 'Chunking content…', `${rawText.length.toLocaleString()} characters extracted`);
+
+    const chunks = chunkText(rawText, 4000, 300);
+    const usableChunks = chunks.slice(0, Math.ceil(maxQ / 3) + 2); // rough estimate
+
+    setProgress(20, `Processing ${usableChunks.length} chunks…`, '');
+
+    for (let i = 0; i < usableChunks.length; i++) {
+      if (generatedMCQs.length >= maxQ) break;
+
+      const pct = 20 + Math.round(((i + 1) / usableChunks.length) * 65);
+      setProgress(pct, `Generating MCQs (chunk ${i + 1}/${usableChunks.length})…`, `${generatedMCQs.length} questions so far`);
+
+      const userMsg = `Extract MCQs from this text:\n\n${usableChunks[i]}`;
+
+      try {
+        const raw = await callSambaNova(apiKey, model, SYSTEM_PROMPT, userMsg);
+        const parsed = parseJSONSafe(raw);
+        if (Array.isArray(parsed)) {
+          for (const mcq of parsed) {
+            if (isValidMCQ(mcq) && generatedMCQs.length < maxQ) {
+              generatedMCQs.push(mcq);
+              appendMCQCard(mcq, generatedMCQs.length);
+              updateResultsHeader();
+            }
+          }
+        }
+      } catch (chunkErr) {
+        console.warn(`Chunk ${i + 1} error:`, chunkErr.message);
+        setLog(`⚠ Chunk ${i + 1} skipped: ${chunkErr.message}`);
+      }
+    }
+
+    setProgress(100, 'Done!', `${generatedMCQs.length} MCQs generated`);
+
+    if (generatedMCQs.length === 0) {
+      showError('No MCQs could be extracted from this PDF. Try a PDF with question content or exam material.');
+      emptyState.style.display = '';
+      emptyState.innerHTML = '<span class="big-icon" style="opacity:.4">🔍</span><p>No questions found. Make sure the PDF contains exam or quiz content.</p>';
+    } else {
+      updateResultsHeader();
+    }
+
+  } catch (err) {
+    showError(err.message);
+    if (generatedMCQs.length === 0) {
+      emptyState.style.display = '';
+    }
+  } finally {
+    generateBtn.disabled = false;
+    btnText.textContent = '⚡ Generate MCQs';
+    checkReady();
+    if (generateBtn.disabled) checkReady();
+  }
+});
+
+// ── Helpers ──
+function setProgress(pct, label, log) {
+  progressFill.style.width = pct + '%';
+  progressLabel.textContent = label;
+  progressPct.textContent = pct + '%';
+  if (log) statusLog.textContent = log;
+}
+
+function setLog(msg) { statusLog.textContent = msg; }
+
+function showError(msg) {
+  errorBox.classList.add('visible');
+  errorText.textContent = msg;
+}
+
+function hideError() { errorBox.classList.remove('visible'); }
+
+function parseJSONSafe(text) {
+  // strip markdown fences
+  let clean = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+  // find JSON array
+  const start = clean.indexOf('[');
+  const end = clean.lastIndexOf(']');
+  if (start !== -1 && end !== -1) clean = clean.slice(start, end + 1);
+  return JSON.parse(clean);
+}
+
+function isValidMCQ(mcq) {
+  return mcq &&
+    typeof mcq.question === 'string' && mcq.question.trim().length > 5 &&
+    Array.isArray(mcq.options) && mcq.options.length === 4 &&
+    mcq.options.every(o => typeof o === 'string' && o.trim().length > 0) &&
+    typeof mcq.correct === 'number' && mcq.correct >= 0 && mcq.correct <= 3;
+}
+
+function updateResultsHeader() {
+  resultsHeader.classList.add('visible');
+  resultsCount.textContent = `${generatedMCQs.length} MCQ${generatedMCQs.length !== 1 ? 's' : ''}`;
+}
+
+// ── Render MCQ Card ──
+const LABELS = ['A', 'B', 'C', 'D'];
+
+function appendMCQCard(mcq, num) {
+  const card = document.createElement('div');
+  card.className = 'mcq-card';
+  card.style.animationDelay = `${(num - 1) * 0.05}s`;
+
+  const diff = (mcq.difficulty || 'medium').toLowerCase();
+  const lvl  = (mcq.level || 'L2').toUpperCase();
+  const type = (mcq.type || 'conceptual').toLowerCase().replace('_', '-');
+
+  card.innerHTML = `
+    <div class="card-header">
+      <span class="q-num">Q${num}</span>
+      <div class="q-text">${escHtml(mcq.question)}</div>
+    </div>
+    <div class="card-meta">
+      <span class="meta-tag difficulty-${diff}">${diff}</span>
+      <span class="meta-tag level">${lvl}</span>
+      <span class="meta-tag type">${type}</span>
+    </div>
+    <div class="options-list">
+      ${mcq.options.map((opt, i) => `
+        <div class="option" data-index="${i}" data-correct="${mcq.correct}">
+          <span class="option-label">${LABELS[i]}</span>
+          <span>${escHtml(opt)}</span>
+        </div>
+      `).join('')}
+    </div>
+    <div class="explanation" id="exp-${num}">
+      <strong>💡 Explanation</strong>
+      ${escHtml(mcq.explanation || 'No explanation provided.')}
+    </div>
+    <div class="card-footer">
+      <button class="reveal-btn" data-num="${num}">Show Answer</button>
+      <span style="font-size:12px;color:var(--muted);font-family:'DM Mono',monospace">
+        Correct: <strong style="color:var(--accent)">${LABELS[mcq.correct]}</strong>
+        (hidden)
+      </span>
+    </div>
+  `;
+
+  // Option click
+  card.querySelectorAll('.option').forEach(opt => {
+    opt.addEventListener('click', () => {
+      const idx = parseInt(opt.dataset.index);
+      const correct = parseInt(opt.dataset.correct);
+      card.querySelectorAll('.option').forEach(o => {
+        const i = parseInt(o.dataset.index);
+        if (i === correct) o.classList.add('correct');
+        else if (i === idx && idx !== correct) o.classList.add('wrong');
+      });
+      document.getElementById(`exp-${num}`).classList.add('visible');
+    });
+  });
+
+  // Reveal button
+  card.querySelector('.reveal-btn').addEventListener('click', () => {
+    const correct = mcq.correct;
+    card.querySelectorAll('.option').forEach(o => {
+      if (parseInt(o.dataset.index) === correct) o.classList.add('correct');
+    });
+    document.getElementById(`exp-${num}`).classList.add('visible');
+    card.querySelector('.reveal-btn').textContent = '✓ Answer Revealed';
+    card.querySelector('.reveal-btn').style.opacity = '0.5';
+    card.querySelector('.reveal-btn').disabled = true;
+  });
+
+  mcqGrid.appendChild(card);
+}
+
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// ── Export JSON ──
+exportBtn.addEventListener('click', () => {
+  if (!generatedMCQs.length) return;
+  const blob = new Blob([JSON.stringify(generatedMCQs, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `mcqs-${Date.now()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+</script>
+</body>
+</html>
