@@ -184,7 +184,7 @@
       </div>
       <div class="field">
         <label>Max Questions</label>
-        <input type="number" id="max-questions" value="15" min="1" max="100" />
+        <input type="number" id="max-questions" value="50" min="1" max="100" />
       </div>
     </div>
   </div>
@@ -403,7 +403,7 @@ $('generate-btn').addEventListener('click', async () => {
 
   const apiKey  = $('api-key').value.trim();
   const model   = $('model-select').value;
-  const maxQ    = parseInt($('max-questions').value) || 15;
+  const maxQ    = parseInt($('max-questions').value) || 50;
   const subCode = ($('subject-code').value.trim() || 'XX').toUpperCase().replace(/\s/g,'');
 
   try {
