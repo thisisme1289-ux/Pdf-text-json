@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>MCQ Engine — SambaNova</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+:root{
+  --bg:#0b0b10;--surf:#13131c;--s2:#1a1a26;--brd:#26263a;
+  --acc:#7c6dfa;--a2:#fa6d8a;--a3:#6dfabc;
+  --tx:#eeeef5;--mu:#6a6a90;
+  --ok:#1a3a28;--okb:#2ecc71;--bad:#3a1a1a;--badb:#e74c3c;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--tx);font-family:'DM Sans',sans-serif;min-height:100vh}
+body::before{content:'';position:fixed;top:-180px;left:50%;transform:translateX(-50%);width:700px;height:420px;background:radial-gradient(ellipse,rgba(124,109,250,.1) 0%,transparent 70%);pointer-events:none;z-index:0}
+
+/* ── HEADER ── */
+header{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:14px 32px;border-bottom:1px solid var(--brd);background:rgba(11,11,16,.92);backdrop-filter:blur(12px)}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-icon{width:30px;height:30px;background:linear-gradient(135deg,var(--acc),var(--a2));border-radius:8px;display:grid;place-items:center;font-size:14px}
+.logo-text{font-family:'Syne',sans-serif;font-weight:800;font-size:16px;letter-spacing:-.5px}
+.logo-text em{color:var(--acc);font-style:normal}
+.badge{font-family:'DM Mono',monospace;font-size:10px;padding:3px 9px;background:rgba(124,109,250,.14);border:1px solid rgba(124,109,250,.28);border-radius:20px;color:var(--acc)}
+
+/* ── LAYOUT ── */
+main{max-width:960px;margin:0 auto;padding:28px 18px 80px;position:relative;z-index:1}
+
+/* ── STEP INDICATOR ── */
+.steps{display:flex;align-items:center;gap:0;margin-bottom:28px}
+.step{display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:600;font-family:'Syne',sans-serif;color:var(--mu);transition:all .3s}
+.step.active{color:var(--tx)}
+.step-num{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-family:'DM Mono',monospace;background:var(--s2);border:1px solid var(--brd);transition:all .3s;flex-shrink:0}
+.step.active .step-num{background:var(--acc);border-color:var(--acc);color:#fff}
+.step.done .step-num{background:var(--okb);border-color:var(--okb);color:#fff}
+.step.done{color:var(--okb)}
+.step-sep{flex:1;height:1px;background:var(--brd);margin:0 4px}
+
+/* ── PANEL ── */
+.panel{background:var(--surf);border:1px solid var(--brd);border-radius:14px;padding:20px 22px;margin-bottom:16px}
+.ptitle{font-family:'Syne',sans-serif;font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.ptitle::after{content:'';flex:1;height:1px;background:var(--brd)}
+
+/* ── GRID ── */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.g3{display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px}
+.sa{grid-column:1/-1}
+@media(max-width:580px){.g2,.g3{grid-template-columns:1fr}}
+
+/* ── FIELD ── */
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-size:10px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:.8px}
+.field input,.field select,.field textarea{background:var(--s2);border:1px solid var(--brd);border-radius:8px;color:var(--tx);font-family:'DM Sans',sans-serif;font-size:13px;padding:8px 11px;outline:none;transition:border-color .2s;width:100%}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(124,109,250,.09)}
+.field input::placeholder,.field textarea::placeholder{color:var(--mu)}
+.field select option{background:#1a1a26}
+
+/* ── UPLOAD ZONE ── */
+.upload-zone{border:2px dashed var(--brd);border-radius:14px;padding:32px 22px;text-align:center;cursor:pointer;transition:all .3s;position:relative;overflow:hidden;background:var(--surf);margin-bottom:14px}
+.upload-zone::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(124,109,250,.04),rgba(250,109,138,.04));opacity:0;transition:opacity .3s;pointer-events:none}
+.upload-zone:hover,.upload-zone.drag-over{border-color:var(--acc);transform:translateY(-1px)}
+.upload-zone:hover::before,.upload-zone.drag-over::before{opacity:1}
+.uz-icon{font-size:28px;margin-bottom:8px;display:block}
+.upload-zone h3{font-family:'Syne',sans-serif;font-size:15px;font-weight:700;margin-bottom:4px}
+.upload-zone p{color:var(--mu);font-size:12px;margin-bottom:12px}
+.ubtn{display:inline-flex;align-items:center;gap:6px;padding:7px 15px;background:rgba(124,109,250,.14);border:1px solid rgba(124,109,250,.35);border-radius:7px;color:var(--acc);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;cursor:pointer;transition:all .2s}
+.ubtn:hover{background:rgba(124,109,250,.24)}
+
+/* ── FILE CHIP ── */
+.fchip{display:none;align-items:center;gap:10px;background:var(--surf);border:1px solid var(--brd);border-radius:9px;padding:9px 13px;margin-bottom:14px}
+.fchip.on{display:flex}
+.fchip-icon{width:28px;height:28px;background:linear-gradient(135deg,#e74c3c,#c0392b);border-radius:6px;display:grid;place-items:center;font-size:12px;flex-shrink:0}
+.fchip-det{flex:1;min-width:0}
+.fchip-name{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fchip-meta{font-size:10px;color:var(--mu);font-family:'DM Mono',monospace}
+.fchip-rm{background:none;border:none;color:var(--mu);cursor:pointer;font-size:14px;padding:2px;transition:color .2s}
+.fchip-rm:hover{color:var(--a2)}
+
+/* ── BUTTONS ── */
+.btn-primary{display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 20px;background:linear-gradient(135deg,var(--acc),#9b8aff);border:none;border-radius:10px;color:#fff;font-family:'Syne',sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:all .3s;box-shadow:0 6px 22px rgba(124,109,250,.26);width:100%}
+.btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 10px 28px rgba(124,109,250,.4)}
+.btn-primary:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.btn-secondary{display:flex;align-items:center;justify-content:center;gap:7px;padding:10px 18px;background:var(--s2);border:1px solid var(--brd);border-radius:10px;color:var(--tx);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:all .2s}
+.btn-secondary:hover:not(:disabled){border-color:var(--acc);color:var(--acc)}
+.btn-secondary:disabled{opacity:.4;cursor:not-allowed}
+.btn-green{display:flex;align-items:center;justify-content:center;gap:7px;padding:12px 20px;background:linear-gradient(135deg,#1a6b3a,#2ecc71);border:none;border-radius:10px;color:#fff;font-family:'Syne',sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:all .3s;box-shadow:0 6px 20px rgba(46,204,113,.2);width:100%}
+.btn-green:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 10px 26px rgba(46,204,113,.35)}
+.btn-green:disabled{opacity:.4;cursor:not-allowed;transform:none}
+
+/* ── TEXT PREVIEW ── */
+.text-preview-wrap{position:relative}
+.text-preview{width:100%;min-height:240px;max-height:400px;resize:vertical;background:var(--s2);border:1px solid var(--brd);border-radius:10px;color:var(--tx);font-family:'DM Mono',monospace;font-size:11.5px;line-height:1.65;padding:14px;outline:none;transition:border-color .2s}
+.text-preview:focus{border-color:var(--acc)}
+.text-stats{display:flex;gap:14px;margin-top:6px;flex-wrap:wrap}
+.tstat{font-size:10px;font-family:'DM Mono',monospace;color:var(--mu)}
+.tstat span{color:var(--acc);font-weight:600}
+
+/* ── PROGRESS ── */
+.prog-wrap{display:none;margin-bottom:20px}
+.prog-wrap.on{display:block}
+.prog-top{display:flex;justify-content:space-between;font-size:11px;color:var(--mu);margin-bottom:6px}
+.prog-track{height:4px;background:var(--s2);border-radius:99px;overflow:hidden}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--acc),var(--a2));border-radius:99px;width:0%;transition:width .4s ease}
+.prog-log{margin-top:7px;font-size:10px;color:var(--mu);font-family:'DM Mono',monospace;min-height:13px}
+
+/* ── ERROR / INFO ── */
+.msgbox{display:none;border-radius:10px;padding:11px 15px;font-size:12px;margin-bottom:14px;gap:8px;align-items:flex-start}
+.msgbox.on{display:flex}
+.msgbox.err{background:rgba(231,76,60,.07);border:1px solid rgba(231,76,60,.2);color:#ff8a80}
+.msgbox.info{background:rgba(124,109,250,.07);border:1px solid rgba(124,109,250,.2);color:#b8b0ff}
+.msgbox.ok{background:rgba(46,204,113,.07);border:1px solid rgba(46,204,113,.2);color:#7effc0}
+
+/* ── RESULTS HEADER ── */
+.rhead{display:none;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px}
+.rhead.on{display:flex}
+.rtitle{font-family:'Syne',sans-serif;font-size:16px;font-weight:700}
+.rcnt{font-family:'DM Mono',monospace;font-size:11px;color:var(--acc);background:rgba(124,109,250,.1);border:1px solid rgba(124,109,250,.2);padding:3px 9px;border-radius:20px}
+.exbtn{padding:6px 13px;background:var(--surf);border:1px solid var(--brd);border-radius:7px;color:var(--tx);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:5px}
+.exbtn:hover{border-color:var(--a3);color:var(--a3)}
+
+/* ── CHAPTER ── */
+.chap-sec{margin-bottom:22px}
+.chap-hdr{display:flex;align-items:center;gap:9px;margin-bottom:10px;padding:9px 13px;background:var(--surf);border:1px solid var(--brd);border-radius:9px}
+.cid{font-family:'DM Mono',monospace;font-size:10px;padding:2px 8px;background:rgba(124,109,250,.11);border:1px solid rgba(124,109,250,.24);border-radius:5px;color:var(--acc);flex-shrink:0}
+.cname{font-family:'Syne',sans-serif;font-size:12px;font-weight:600;flex:1}
+.ccnt{font-size:10px;color:var(--mu);font-family:'DM Mono',monospace;flex-shrink:0}
+
+/* ── MCQ CARD ── */
+.mcq-grid{display:flex;flex-direction:column;gap:10px}
+.card{background:var(--surf);border:1px solid var(--brd);border-radius:12px;overflow:hidden;animation:cin .3s ease both}
+@keyframes cin{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.card:hover{border-color:rgba(124,109,250,.26);box-shadow:0 3px 16px rgba(0,0,0,.25)}
+.card-hdr{display:flex;align-items:flex-start;gap:11px;padding:14px 17px 10px}
+.qid{font-family:'DM Mono',monospace;font-size:9px;color:var(--acc);background:rgba(124,109,250,.1);border:1px solid rgba(124,109,250,.2);border-radius:5px;padding:2px 7px;flex-shrink:0;margin-top:2px;white-space:nowrap}
+.qtxt{font-size:13px;font-weight:500;line-height:1.65;flex:1}
+.card-meta{display:flex;gap:5px;flex-wrap:wrap;padding:0 17px 10px}
+.mt{font-size:9px;font-family:'DM Mono',monospace;padding:2px 6px;border-radius:4px}
+.de{background:rgba(46,204,113,.1);color:#2ecc71;border:1px solid rgba(46,204,113,.18)}
+.dm{background:rgba(241,196,15,.1);color:#f1c40f;border:1px solid rgba(241,196,15,.18)}
+.dh{background:rgba(231,76,60,.1);color:#e74c3c;border:1px solid rgba(231,76,60,.18)}
+.ml{background:rgba(124,109,250,.1);color:var(--acc);border:1px solid rgba(124,109,250,.18)}
+.mt2{background:rgba(109,250,188,.07);color:var(--a3);border:1px solid rgba(109,250,188,.14)}
+.opts{padding:0 17px 4px;display:flex;flex-direction:column;gap:6px}
+.opt{display:flex;align-items:flex-start;gap:9px;padding:8px 11px;border-radius:7px;border:1px solid var(--brd);background:var(--s2);cursor:pointer;transition:all .2s;font-size:12px;line-height:1.5}
+.opt:hover{border-color:rgba(124,109,250,.38);background:rgba(124,109,250,.05)}
+.opt.correct{background:var(--ok);border-color:var(--okb);color:#2ecc71}
+.opt.wrong{background:var(--bad);border-color:var(--badb);color:#e74c3c}
+.olbl{font-family:'DM Mono',monospace;font-size:9px;padding:2px 5px;border-radius:3px;background:rgba(255,255,255,.06);flex-shrink:0;margin-top:1px}
+.opt.correct .olbl{background:rgba(46,204,113,.2)}
+.opt.wrong .olbl{background:rgba(231,76,60,.2)}
+.expl{display:none;margin:0 17px 14px;padding:9px 12px;background:rgba(109,250,188,.05);border:1px solid rgba(109,250,188,.12);border-radius:7px;font-size:11px;color:#a0f0cc;line-height:1.7}
+.expl.on{display:block}
+.expl strong{display:block;font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--a3);margin-bottom:4px}
+.card-foot{padding:10px 17px 14px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--brd);margin-top:8px}
+.rbtn{font-size:11px;font-weight:500;color:var(--acc);background:rgba(124,109,250,.09);border:1px solid rgba(124,109,250,.2);border-radius:6px;padding:4px 11px;cursor:pointer;transition:all .2s;font-family:'DM Sans',sans-serif}
+.rbtn:hover:not(:disabled){background:rgba(124,109,250,.18)}
+.rbtn:disabled{opacity:.38;cursor:default}
+
+/* ── SPINNER ── */
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin{width:13px;height:13px;border:2px solid rgba(255,255,255,.28);border-top-color:#fff;border-radius:50%;animation:spin .55s linear infinite;flex-shrink:0}
+
+/* ── EMPTY ── */
+.empty{text-align:center;padding:48px 16px;color:var(--mu)}
+.empty .bi{font-size:36px;display:block;margin-bottom:10px;opacity:.28}
+
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--brd);border-radius:3px}
+
+/* ── QUESTION TYPE BADGES ── */
+.qt-mcq{background:rgba(124,109,250,.1);color:#b8b0ff;border:1px solid rgba(124,109,250,.22)}
+.qt-ar{background:rgba(250,200,109,.1);color:#fad06d;border:1px solid rgba(250,200,109,.22)}
+.qt-match{background:rgba(109,210,250,.1);color:#6dd2fa;border:1px solid rgba(109,210,250,.22)}
+.qt-case{background:rgba(250,109,188,.1);color:#fa6dbc;border:1px solid rgba(250,109,188,.22)}
+.qt-stmt{background:rgba(109,250,188,.1);color:#6dfabc;border:1px solid rgba(109,250,188,.22)}
+.qt-num{background:rgba(250,140,109,.1);color:#fa8c6d;border:1px solid rgba(250,140,109,.22)}
+.qt-seq{background:rgba(180,109,250,.1);color:#b46dfa;border:1px solid rgba(180,109,250,.22)}
+.qt-tf{background:rgba(200,230,100,.1);color:#c8e664;border:1px solid rgba(200,230,100,.22)}
+
+/* ── ASSERTION-REASON LAYOUT ── */
+.ar-block{margin:0 17px 10px;display:flex;flex-direction:column;gap:6px}
+.ar-row{padding:8px 12px;border-radius:7px;font-size:12px;line-height:1.6}
+.ar-a{background:rgba(250,200,109,.05);border:1px solid rgba(250,200,109,.15)}
+.ar-r{background:rgba(109,210,250,.05);border:1px solid rgba(109,210,250,.15)}
+.ar-label{font-size:9px;font-family:'DM Mono',monospace;font-weight:600;text-transform:uppercase;letter-spacing:.8px;margin-bottom:3px}
+.ar-label.al{color:#fad06d}
+.ar-label.rl{color:#6dd2fa}
+
+/* ── MATCH LIST LAYOUT ── */
+.match-block{margin:0 17px 10px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.match-col{background:var(--s2);border:1px solid var(--brd);border-radius:7px;padding:8px 10px}
+.match-col-hdr{font-size:9px;font-family:'DM Mono',monospace;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--mu);margin-bottom:6px}
+.match-item{font-size:11px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04);line-height:1.5}
+.match-item:last-child{border-bottom:none}
+
+/* ── CASE / PASSAGE LAYOUT ── */
+.passage-block{margin:0 17px 10px;padding:10px 13px;background:rgba(250,109,188,.04);border:1px solid rgba(250,109,188,.14);border-radius:8px;font-size:11.5px;line-height:1.7;color:#e0c8d8;font-style:italic}
+.passage-label{font-size:9px;font-family:'DM Mono',monospace;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:#fa6dbc;margin-bottom:5px;font-style:normal}
+
+/* ── STATEMENT LIST ── */
+.stmt-block{margin:0 17px 10px;display:flex;flex-direction:column;gap:4px}
+.stmt-row{display:flex;gap:8px;padding:6px 10px;background:var(--s2);border:1px solid var(--brd);border-radius:6px;font-size:11.5px;line-height:1.55}
+.stmt-num{font-family:'DM Mono',monospace;font-size:9px;color:var(--acc);flex-shrink:0;padding-top:1px}
+
+/* ── FILTER BAR ── */
+.filter-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.fbtn{font-size:10px;font-family:'DM Mono',monospace;padding:3px 10px;border-radius:5px;border:1px solid var(--brd);background:var(--s2);color:var(--mu);cursor:pointer;transition:all .2s}
+.fbtn:hover,.fbtn.on{border-color:var(--acc);color:var(--acc);background:rgba(124,109,250,.08)}
+.fbtn .fc{margin-left:4px;background:rgba(124,109,250,.15);border-radius:3px;padding:0 4px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">⚡</div>
+    <div class="logo-text">MCQ <em>Engine</em></div>
+  </div>
+  <span class="badge">SAMBANOVA POWERED</span>
+</header>
+
+<main>
+
+  <!-- Step indicator -->
+  <div class="steps">
+    <div class="step active" id="s1-ind">
+      <span class="step-num" id="s1n">1</span>
+      <span>Extract Text</span>
+    </div>
+    <div class="step-sep"></div>
+    <div class="step" id="s2-ind">
+      <span class="step-num" id="s2n">2</span>
+      <span>Generate Questions</span>
+    </div>
+    <div class="step-sep"></div>
+    <div class="step" id="s3-ind">
+      <span class="step-num" id="s3n">3</span>
+      <span>Export JSON</span>
+    </div>
+  </div>
+
+  <!-- ══════════ STEP 1: PDF → TEXT ══════════ -->
+  <div id="step1">
+
+    <div class="panel">
+      <div class="ptitle">📄 Step 1 — Upload PDF & Extract Text</div>
+
+      <div class="upload-zone" id="uz">
+        <span class="uz-icon">📑</span>
+        <h3>Drop your exam PDF here</h3>
+        <p>CUET, NEET, JEE, CA, UPSC, custom papers — any text-based PDF</p>
+        <button class="ubtn" type="button" id="cfb">📂 Choose PDF</button>
+        <input type="file" id="fi" accept=".pdf" style="display:none"/>
+      </div>
+
+      <div class="fchip" id="fchip">
+        <div class="fchip-icon">📄</div>
+        <div class="fchip-det">
+          <div class="fchip-name" id="fn">—</div>
+          <div class="fchip-meta" id="fm">—</div>
+        </div>
+        <button class="fchip-rm" id="frm">✕</button>
+      </div>
+
+      <div class="msgbox err" id="err1"><span>⚠</span><span id="etxt1"></span></div>
+
+      <button class="btn-primary" id="extract-btn" disabled>
+        <span id="exttxt">📖 Extract Text from PDF</span>
+      </button>
+    </div>
+
+    <!-- Extracted text preview + edit -->
+    <div id="text-panel" style="display:none">
+      <div class="panel">
+        <div class="ptitle">✏️ Extracted Text <span style="font-size:10px;font-weight:400;color:var(--mu);text-transform:none;letter-spacing:0">(review &amp; edit before sending to AI)</span></div>
+
+        <div class="msgbox info on" id="edit-tip">
+          <span>💡</span>
+          <span>This is the raw text extracted from your PDF. You can <strong>edit it directly</strong> — clean up any garbled lines, fix merged words, or remove junk before sending to AI.</span>
+        </div>
+
+        <div class="text-preview-wrap">
+          <textarea class="text-preview" id="raw-text" spellcheck="false" placeholder="Extracted text will appear here…"></textarea>
+        </div>
+        <div class="text-stats" id="tstats"></div>
+      </div>
+
+      <button class="btn-green" id="next-btn">
+        ✅ Text Looks Good — Generate MCQs →
+      </button>
+    </div>
+
+  </div><!-- /step1 -->
+
+  <!-- ══════════ STEP 2: TEXT → MCQs ══════════ -->
+  <div id="step2" style="display:none">
+
+    <div class="panel">
+      <div class="ptitle">⚙️ Step 2 — AI Configuration</div>
+      <div class="g2">
+        <div class="field sa">
+          <label>SambaNova API Key</label>
+          <input type="password" id="api-key" placeholder="samba-xxxxxxxxxxxxxxxx" autocomplete="off"/>
+        </div>
+        <div class="field">
+          <label>Model</label>
+          <select id="model">
+            <option value="Meta-Llama-3.3-70B-Instruct">Llama 3.3 70B (Best)</option>
+            <option value="DeepSeek-V3-0324">DeepSeek V3-0324</option>
+            <option value="Meta-Llama-3.1-8B-Instruct">Llama 3.1 8B (Fast)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Max Questions</label>
+          <input type="number" id="maxq" value="30" min="1" max="300"/>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="ptitle">📋 Dataset Metadata</div>
+      <div class="g3">
+        <div class="field">
+          <label>Subject Name</label>
+          <input type="text" id="subname" placeholder="e.g. Business Studies"/>
+        </div>
+        <div class="field">
+          <label>Subject Code</label>
+          <input type="text" id="subcode" placeholder="e.g. BS" maxlength="6"/>
+        </div>
+        <div class="field">
+          <label>Part / Exam</label>
+          <input type="text" id="partlbl" placeholder="e.g. CUET 2025"/>
+        </div>
+      </div>
+    </div>
+
+    <div class="msgbox err" id="err2"><span>⚠</span><span id="etxt2"></span></div>
+
+    <!-- Progress -->
+    <div class="prog-wrap" id="pwrap">
+      <div class="prog-top">
+        <span id="plbl">Processing…</span>
+        <span id="ppct">0%</span>
+      </div>
+      <div class="prog-track"><div class="prog-fill" id="pfill"></div></div>
+      <div class="prog-log" id="plog"></div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr auto;gap:10px;margin-bottom:24px">
+      <button class="btn-primary" id="gen-btn" disabled>
+        <span id="gentxt">⚡ Extract All Question Types</span>
+      </button>
+      <button class="btn-secondary" id="back-btn" style="width:auto;padding:12px 18px">← Back</button>
+    </div>
+
+    <!-- Results -->
+    <div class="rhead" id="rhead">
+      <div style="display:flex;align-items:center;gap:9px">
+        <span class="rtitle">Generated Dataset</span>
+        <span class="rcnt" id="rcnt">0 Questions</span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="exbtn" id="exbtn">⬇ Export JSON</button>
+      </div>
+    </div>
+    <!-- Filter bar -->
+    <div class="filter-bar" id="fbar" style="display:none">
+      <button class="fbtn on" data-type="all" id="fb-all">All <span class="fc" id="fc-all">0</span></button>
+      <button class="fbtn" data-type="mcq" id="fb-mcq">MCQ <span class="fc" id="fc-mcq">0</span></button>
+      <button class="fbtn" data-type="assertion_reason" id="fb-assertion_reason">Assertion-Reason <span class="fc" id="fc-assertion_reason">0</span></button>
+      <button class="fbtn" data-type="match_list" id="fb-match_list">Match List <span class="fc" id="fc-match_list">0</span></button>
+      <button class="fbtn" data-type="case_based" id="fb-case_based">Case-Based <span class="fc" id="fc-case_based">0</span></button>
+      <button class="fbtn" data-type="statement" id="fb-statement">Statement <span class="fc" id="fc-statement">0</span></button>
+      <button class="fbtn" data-type="numerical" id="fb-numerical">Numerical <span class="fc" id="fc-numerical">0</span></button>
+      <button class="fbtn" data-type="sequence" id="fb-sequence">Sequence <span class="fc" id="fc-sequence">0</span></button>
+    
+
+    <div id="out">
+      <div class="empty" id="emp">
+        <span class="bi">🧩</span>
+        <p>Click "Generate" above to extract all question types from the text</p>
+      </div>
+    </div>
+
+  </div><!-- /step2 -->
+
+</main>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const $=id=>document.getElementById(id);
+
+let pdfFile=null, chapData=[], gNum=0;
+
+// ══════════════════════════════════════
+//  STEP 1 — PDF UPLOAD & TEXT EXTRACT
+// ══════════════════════════════════════
+
+const uz=$('uz'),fi=$('fi');
+uz.addEventListener('dragover',e=>{e.preventDefault();uz.classList.add('drag-over')});
+uz.addEventListener('dragleave',()=>uz.classList.remove('drag-over'));
+uz.addEventListener('drop',e=>{
+  e.preventDefault();uz.classList.remove('drag-over');
+  const f=e.dataTransfer.files[0];
+  f&&f.type==='application/pdf'?setFile(f):showErr(1,'Please drop a valid PDF file.');
+});
+uz.addEventListener('click',()=>fi.click());
+$('cfb').addEventListener('click',e=>{e.stopPropagation();fi.click()});
+fi.addEventListener('change',e=>{if(e.target.files[0])setFile(e.target.files[0])});
+$('frm').addEventListener('click',clearFile);
+
+function setFile(f){
+  hideErr(1);pdfFile=f;
+  $('fn').textContent=f.name;
+  $('fm').textContent=`${(f.size/1024).toFixed(1)} KB`;
+  $('fchip').classList.add('on');
+  $('extract-btn').disabled=false;
+}
+function clearFile(){
+  pdfFile=null;fi.value='';
+  $('fchip').classList.remove('on');
+  $('extract-btn').disabled=true;
+  $('text-panel').style.display='none';
+}
+
+// ── Extract button ──
+$('extract-btn').addEventListener('click',async()=>{
+  hideErr(1);
+  $('exttxt').innerHTML='<div class="spin"></div> Extracting…';
+  $('extract-btn').disabled=true;
+
+  try{
+    const text=await extractPDF(pdfFile);
+    if(!text||text.trim().length<50)
+      throw new Error('Could not extract readable text. Make sure this is a text-based PDF (not a scanned image).');
+
+    $('raw-text').value=text;
+    updateStats(text);
+    $('text-panel').style.display='block';
+    $('text-panel').scrollIntoView({behavior:'smooth',block:'start'});
+    markStep(1,'done');
+  }catch(e){
+    showErr(1,e.message);
+  }finally{
+    $('exttxt').textContent='📖 Extract Text from PDF';
+    $('extract-btn').disabled=false;
+  }
+});
+
+$('raw-text').addEventListener('input',()=>updateStats($('raw-text').value));
+
+function updateStats(text){
+  const chars=text.length;
+  const words=text.trim().split(/\s+/).filter(Boolean).length;
+  const lines=text.split('\n').filter(l=>l.trim()).length;
+  // rough Q count
+  const qmatches=(text.match(/Q[\.\s](?:No\.?\s*)?\d+|^\s*\d+\s*\./gim)||[]).length;
+  $('tstats').innerHTML=`
+    <span class="tstat">Chars: <span>${chars.toLocaleString()}</span></span>
+    <span class="tstat">Words: <span>${words.toLocaleString()}</span></span>
+    <span class="tstat">Lines: <span>${lines.toLocaleString()}</span></span>
+    <span class="tstat">~Questions detected: <span>${qmatches}</span></span>`;
+}
+
+// ── Next button ──
+$('next-btn').addEventListener('click',()=>{
+  const text=$('raw-text').value.trim();
+  if(!text){showErr(1,'Text is empty. Please re-extract or paste text manually.');return}
+  $('step1').style.display='none';
+  $('step2').style.display='block';
+  markStep(2,'active');
+  window.scrollTo({top:0,behavior:'smooth'});
+});
+
+$('back-btn').addEventListener('click',()=>{
+  $('step2').style.display='none';
+  $('step1').style.display='block';
+  markStep(1,'active');
+  markStep(2,'');
+  window.scrollTo({top:0,behavior:'smooth'});
+});
+
+// ══════════════════════════════════════
+//  PDF EXTRACTION (smart line rebuild)
+// ══════════════════════════════════════
+
+async function extractPDF(file){
+  const ab=await file.arrayBuffer();
+  const pdf=await pdfjsLib.getDocument({data:ab}).promise;
+  const total=pdf.numPages;
+  const allPages=[];
+
+  for(let p=1;p<=total;p++){
+    const page=await pdf.getPage(p);
+    const ct=await page.getTextContent({normalizeWhitespace:false});
+
+    // Reconstruct lines by grouping items with same Y coordinate
+    const byY={};
+    ct.items.forEach(item=>{
+      if(!item.str) return;
+      const y=Math.round(item.transform[5]*10)/10; // round to 1dp
+      if(!byY[y]) byY[y]={y,items:[]};
+      byY[y].items.push({x:item.transform[4],str:item.str,w:item.width||0});
+    });
+
+    // Sort lines top→bottom (descending Y in PDF coords)
+    const sortedLines=Object.values(byY).sort((a,b)=>b.y-a.y);
+
+    const pageLines=sortedLines.map(line=>{
+      // Sort items left→right within the line
+      const sorted=line.items.sort((a,b)=>a.x-b.x);
+      // Join — add space if gap between items is large
+      let out='';
+      for(let i=0;i<sorted.length;i++){
+        const s=sorted[i].str;
+        if(i===0){out=s;continue}
+        const prevEnd=sorted[i-1].x+(sorted[i-1].w||0);
+        const gap=sorted[i].x-prevEnd;
+        out+=gap>8?' '+s:s;
+      }
+      return out.trim();
+    }).filter(l=>l.length>0);
+
+    allPages.push(`=== Page ${p} ===\n${pageLines.join('\n')}`);
+  }
+  return allPages.join('\n\n');
+}
+
+// ══════════════════════════════════════
+//  STEP 2 — AI GENERATE
+// ══════════════════════════════════════
+
+$('api-key').addEventListener('input',chkGen);
+function chkGen(){$('gen-btn').disabled=!($('api-key').value.trim().length>10)}
+
+// ── API call ──
+async function callAPI(key,model,sys,user){
+  const r=await fetch('https://api.sambanova.ai/v1/chat/completions',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':`Bearer ${key}`},
+    body:JSON.stringify({
+      model,max_tokens:4096,temperature:0.1,
+      messages:[{role:'system',content:sys},{role:'user',content:user}]
+    })
+  });
+  if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.error?.message||`API ${r.status}: ${r.statusText}`)}
+  return(await r.json()).choices[0].message.content;
+}
+
+// ── System prompt ──
+function buildSys(code){
+return`You are a CUET question extraction engine. Extract EVERY question from the text — including ALL question types, not just simple MCQs.
+
+CUET question types you MUST extract:
+
+1. MCQ (type="mcq") — Standard 4-option multiple choice
+2. ASSERTION_REASON (type="assertion_reason") — Has "Assertion (A):" and "Reason (R):" followed by 4 options like:
+   (A) Both A and R are true, R is correct explanation
+   (B) Both A and R are true, R is NOT correct explanation
+   (C) A is true, R is false
+   (D) A is false, R is true
+   → Store assertion in "assertion", reason in "reason", options array as the 4 standard A/R choices
+3. MATCH_LIST (type="match_list") — "Match List I with List II" or "Match the following"
+   → Store List I items in "list1": [{"key":"A","value":"..."}, ...] and List II items in "list2": [{"key":"I","value":"..."}, ...], options are the matching codes like "A-III, B-I, C-II, D-IV"
+4. CASE_BASED (type="case_based") — A passage/case followed by questions
+   → Store passage in "passage", question text is the sub-question
+5. STATEMENT (type="statement") — "Which of the following statements is/are correct?" with numbered statements I, II, III
+   → Store statements in "statements": ["Statement I text", "Statement II text", ...]
+6. NUMERICAL (type="numerical") — Calculation/computation based
+7. SEQUENCE (type="sequence") — "Arrange in correct order" or "Which is the correct sequence"
+8. TRUE_FALSE (type="true_false") — Only 2 options: True/False (still store as 2-item options array)
+
+Return ONLY a valid JSON array. No markdown, no backticks, zero text outside the JSON array.
+
+Output format — each question object:
+{
+  "chapter_id": "${code}01",
+  "chapter": "Topic or chapter name",
+  "questions": [
+    {
+      "id": "${code}01Q01",
+      "type": "mcq",
+      "level": "L2",
+      "difficulty": "medium",
+      "question": "The clean question stem only (no options, no A/B/C/D labels)",
+      "options": ["Option text A", "Option text B", "Option text C", "Option text D"],
+      "correct": 0,
+      "explanation": "Brief explanation (1-2 lines)",
+
+      // ONLY for assertion_reason:
+      "assertion": "Assertion text here",
+      "reason": "Reason text here",
+
+      // ONLY for match_list:
+      "list1": [{"key":"A","value":"item"}, {"key":"B","value":"item"}],
+      "list2": [{"key":"I","value":"item"}, {"key":"II","value":"item"}],
+
+      // ONLY for case_based:
+      "passage": "The full passage/case text",
+
+      // ONLY for statement questions:
+      "statements": ["Statement I: ...", "Statement II: ...", "Statement III: ..."]
+    }
+  ]
+}
+
+TYPE values: mcq | assertion_reason | match_list | case_based | statement | numerical | sequence | true_false
+LEVEL: L1 (recall) | L2 (understanding) | L3 (tricky/multi-step/analytical)
+DIFFICULTY: easy | medium | hard
+
+STRICT RULES:
+1. Extract EVERY question — do NOT skip any type
+2. For MCQ/standard: exactly 4 options, strip prefixes like "1." "(A)" "A."
+3. For true_false: 2 options ["True","False"] or as written
+4. "correct" = 0-based index of the correct option in the options array
+5. Correct Answer line "3." or "(3)" → correct=2; "2" → correct=1; "A"/"(A)" → correct=0
+6. Strip: Solution, Quick Tip, Step 1/2/3, Final Answer, page numbers, headers
+7. Group by detectable topic; else all in one chapter "${code}01"
+8. IDs: chapter_id = ${code}+2digit, question id = chapter_id + Q + 2digit
+9. Output ONLY the JSON array starting with [`;
+}
+
+// ── Chunk text on question boundaries ──
+function chunkOnQuestions(text,maxLen=6000){
+  // Split before each question marker — including Assertion-Reason, Match, Case-based
+  const rx=/(?=(?:Q[\.\s](?:No\.?\s*)?\d+[\.\)]|^\s*\d{1,3}[\.\)]\s+[A-Z]|Assertion\s*\(A\)|Match\s+(?:List|the\s+following)|Read\s+the\s+following\s+(?:passage|case)|Which\s+of\s+the\s+following\s+statements?))/gim;
+  const parts=text.split(rx).filter(p=>p.trim().length>10);
+  if(parts.length<2) return splitFixed(text,maxLen);
+
+  const chunks=[];
+  let cur='';
+  for(const p of parts){
+    if(cur.length+p.length>maxLen&&cur.length>0){chunks.push(cur.trim());cur=p}
+    else cur+='\n'+p;
+  }
+  if(cur.trim())chunks.push(cur.trim());
+  return chunks.filter(c=>c.length>20);
+}
+
+function splitFixed(text,size=6000,overlap=600){
+  const c=[];let s=0;
+  while(s<text.length){c.push(text.slice(s,s+size));s+=size-overlap;if(s>=text.length)break}
+  return c;
+}
+
+// ── Main generate ──
+$('gen-btn').addEventListener('click',async()=>{
+  hideErr(2);chapData=[];gNum=0;
+  // reset filter counts
+  Object.keys(typeCounts).forEach(k=>delete typeCounts[k]);
+  typeCounts.all=0;
+  activeFilter='all';
+  document.querySelectorAll('.fbtn').forEach(b=>b.classList.toggle('on',b.dataset.type==='all'));
+  $('fbar').style.display='none';
+  $('out').innerHTML='<div class="empty"><span class="bi">🧩</span><p>Generating…</p></div>';
+  $('rhead').classList.remove('on');
+  $('pwrap').classList.add('on');
+  $('gen-btn').disabled=true;
+  $('gentxt').innerHTML='<div class="spin"></div> Generating…';
+
+  const key=$('api-key').value.trim();
+  const model=$('model').value;
+  const maxQ=parseInt($('maxq').value)||30;
+  const code=($('subcode').value.trim()||'XX').toUpperCase().replace(/\s/g,'');
+  const rawText=$('raw-text').value.trim();
+
+  try{
+    setP(5,'Splitting text into chunks…','');
+    const chunks=chunkOnQuestions(rawText,6000);
+    setP(10,'',`Split into ${chunks.length} chunk(s)`);
+
+    const sys=buildSys(code);
+    let total=0;
+    const useChunks=Math.min(chunks.length,Math.ceil(maxQ/4)+5);
+
+    for(let i=0;i<useChunks;i++){
+      if(total>=maxQ)break;
+      const pct=12+Math.round(((i+1)/useChunks)*82);
+      setP(pct,`Processing chunk ${i+1} of ${useChunks}…`,`${total} questions extracted`);
+
+      let attempts=0;
+      while(attempts<2){
+        try{
+          const resp=await callAPI(key,model,sys,
+            `Extract all MCQs from this text. Every question must be extracted:\n\n${chunks[i]}`);
+          const arr=parseArr(resp);
+          if(!Array.isArray(arr))break;
+
+          for(const co of arr){
+            if(!co||!Array.isArray(co.questions))continue;
+            const cid=sanitizeId(co.chapter_id)||`${code}01`;
+            const cnm=co.chapter||'General';
+            let chap=chapData.find(c=>c.chapter_id===cid);
+            if(!chap){
+              chap={chapter_id:cid,chapter:cnm,questions:[]};
+              chapData.push(chap);
+              renderChap(chap);
+              if($('out').querySelector('.empty'))$('out').querySelector('.empty').remove();
+            }
+            for(const q of co.questions){
+              if(total>=maxQ)break;
+              if(!validQ(q))continue;
+              q.id=`${cid}Q${String(chap.questions.length+1).padStart(2,'0')}`;
+              chap.questions.push(q);
+              total++;gNum++;
+              renderCard(q,gNum,cid);
+              updHead(total);
+            }
+          }
+          break; // success
+        }catch(ae){
+          attempts++;
+          if(attempts>=2){setLog(`⚠ Chunk ${i+1} failed: ${ae.message}`);}
+          else{setLog(`Retrying chunk ${i+1}…`);await delay(1200);}
+        }
+      }
+      if(i<useChunks-1)await delay(300); // small pause between calls
+    }
+
+    setP(100,'Done!',`${total} questions across ${chapData.length} chapter(s)`);
+
+    if(total===0){
+      showErr(2,'No questions were extracted. Tips: (1) Make sure the extracted text actually contains questions — check the text in Step 1. (2) Try editing the text to clean up garbled lines. (3) Try a different model. (4) The PDF may contain scanned images — this tool requires text-based PDFs.');
+      $('out').innerHTML='<div class="empty"><span class="bi" style="opacity:.28">🔍</span><p>No questions found in the text.</p></div>';
+    } else {
+      markStep(3,'active');
+    }
+
+  }catch(err){
+    showErr(2,err.message);
+    $('out').innerHTML=`<div class="empty"><span class="bi" style="opacity:.28">❌</span><p>${esc(err.message)}</p></div>`;
+  }finally{
+    $('gen-btn').disabled=false;
+    $('gentxt').textContent='⚡ Generate MCQ Dataset';
+    chkGen();
+  }
+});
+
+// ── Render chapter ──
+function renderChap(ch){
+  const s=document.createElement('div');
+  s.className='chap-sec';s.id=`cs-${ch.chapter_id}`;
+  s.innerHTML=`
+    <div class="chap-hdr">
+      <span class="cid">${esc(ch.chapter_id)}</span>
+      <span class="cname">${esc(ch.chapter)}</span>
+      <span class="ccnt" id="cc-${ch.chapter_id}">0 Qs</span>
+    </div>
+    <div class="mcq-grid" id="g-${ch.chapter_id}"></div>`;
+  $('out').appendChild(s);
+}
+
+const LBL=['A','B','C','D','E'];
+
+function getTypeLabel(t){
+  const map={mcq:'MCQ',assertion_reason:'Assertion-Reason',match_list:'Match List',case_based:'Case-Based',statement:'Statement',numerical:'Numerical',sequence:'Sequence',true_false:'True/False'};
+  return map[t]||t.replace(/_/g,'-');
+}
+
+function renderCard(q,n,cid){
+  const g=$(`g-${cid}`);if(!g)return;
+  const dc={'easy':'de','medium':'dm','hard':'dh'}[(q.difficulty||'medium').toLowerCase()]||'dm';
+  const t=(q.type||'mcq').toLowerCase();
+  const tclass=TYPE_CLASS[t]||'qt-mcq';
+
+  // Track type counts
+  typeCounts[t]=(typeCounts[t]||0)+1;
+  const filterKey=t;
+
+  const card=document.createElement('div');
+  card.className='card';
+  card.dataset.qtype=filterKey;
+  card.style.animationDelay=`${Math.min((n-1)*.035,.4)}s`;
+
+  // ── Build special content blocks ──
+  let specialHTML='';
+
+  if(t==='assertion_reason'&&q.assertion){
+    specialHTML=`<div class="ar-block">
+      <div class="ar-row ar-a"><div class="ar-label al">Assertion (A)</div>${esc(q.assertion)}</div>
+      <div class="ar-row ar-r"><div class="ar-label rl">Reason (R)</div>${esc(q.reason||'')}</div>
+    </div>`;
+  }
+
+  if(t==='match_list'&&q.list1){
+    const l1rows=(q.list1||[]).map(i=>`<div class="match-item"><strong style="color:var(--acc)">${esc(i.key)}.</strong> ${esc(i.value)}</div>`).join('');
+    const l2rows=(q.list2||[]).map(i=>`<div class="match-item"><strong style="color:var(--a3)">${esc(i.key)}.</strong> ${esc(i.value)}</div>`).join('');
+    specialHTML=`<div class="match-block">
+      <div class="match-col"><div class="match-col-hdr">List I</div>${l1rows}</div>
+      <div class="match-col"><div class="match-col-hdr">List II</div>${l2rows}</div>
+    </div>`;
+  }
+
+  if(t==='case_based'&&q.passage){
+    specialHTML=`<div class="passage-block"><div class="passage-label">📖 Passage / Case</div>${esc(q.passage)}</div>`;
+  }
+
+  if(t==='statement'&&Array.isArray(q.statements)&&q.statements.length>0){
+    const rows=q.statements.map((s,i)=>`<div class="stmt-row"><span class="stmt-num">${['I','II','III','IV','V'][i]||i+1}.</span><span>${esc(s)}</span></div>`).join('');
+    specialHTML=`<div class="stmt-block">${rows}</div>`;
+  }
+
+  // ── Options ──
+  const optsArr=Array.isArray(q.options)?q.options:[];
+  const optsHTML=optsArr.map((o,i)=>`
+    <div class="opt" data-i="${i}" data-c="${q.correct}">
+      <span class="olbl">${LBL[i]||i}</span>
+      <span>${esc(o)}</span>
+    </div>`).join('');
+
+  card.innerHTML=`
+    <div class="card-hdr">
+      <span class="qid">${esc(q.id)}</span>
+      <div class="qtxt">${esc(q.question)}</div>
+    </div>
+    <div class="card-meta">
+      <span class="mt ${dc}">${esc(q.difficulty||'medium')}</span>
+      <span class="mt ml">${esc((q.level||'L2').toUpperCase())}</span>
+      <span class="mt ${tclass}">${getTypeLabel(t)}</span>
+    </div>
+    ${specialHTML}
+    <div class="opts">${optsHTML}</div>
+    <div class="expl" id="ex-${n}">
+      <strong>💡 Explanation</strong>${esc(q.explanation||'—')}
+    </div>
+    <div class="card-foot">
+      <button class="rbtn" id="rb-${n}">Show Answer</button>
+      <span style="font-size:10px;color:var(--mu);font-family:'DM Mono',monospace">
+        Ans: <strong style="color:var(--acc)">${LBL[q.correct]||q.correct}</strong> (hidden)
+      </span>
+    </div>`;
+
+  const doReveal=()=>{
+    card.querySelectorAll('.opt').forEach(o=>{
+      if(+o.dataset.i===q.correct)o.classList.add('correct');
+    });
+    const ex=$(`ex-${n}`);if(ex)ex.classList.add('on');
+    const rb=$(`rb-${n}`);if(rb){rb.textContent='✓ Revealed';rb.disabled=true}
+  };
+  card.querySelectorAll('.opt').forEach(o=>{
+    o.addEventListener('click',()=>{
+      const i=+o.dataset.i;
+      card.querySelectorAll('.opt').forEach(oo=>{
+        const oi=+oo.dataset.i;
+        if(oi===q.correct)oo.classList.add('correct');
+        else if(oi===i)oo.classList.add('wrong');
+      });
+      const ex=$(`ex-${n}`);if(ex)ex.classList.add('on');
+      const rb=$(`rb-${n}`);if(rb){rb.textContent='✓ Revealed';rb.disabled=true}
+    });
+  });
+  const rb=card.querySelector('.rbtn');if(rb)rb.addEventListener('click',doReveal);
+  g.appendChild(card);
+
+  const ch=chapData.find(c=>c.chapter_id===cid);
+  const cc=$(`cc-${cid}`);
+  if(cc&&ch)cc.textContent=`${ch.questions.length} Q${ch.questions.length!==1?'s':''}`;
+}
+
+// ── Export ──
+$('exbtn').addEventListener('click',()=>{
+  if(!chapData.length)return;
+  const total=chapData.reduce((a,c)=>a+c.questions.length,0);
+  const sc=($('subcode').value.trim()||'XX').toUpperCase();
+  const out={
+    subject:$('subname').value.trim()||'Unknown',
+    subject_code:sc,
+    part:$('partlbl').value.trim()||'Part 1',
+    total_questions_this_part:total,
+    chapters:chapData
+  };
+  const b=new Blob([JSON.stringify(out,null,2)],{type:'application/json'});
+  const u=URL.createObjectURL(b);
+  const a=document.createElement('a');
+  a.href=u;a.download=`${sc.toLowerCase()}-mcqs-${Date.now()}.json`;
+  a.click();URL.revokeObjectURL(u);
+  markStep(3,'done');
+});
+
+// ── Filter tracking ──
+const typeCounts={all:0};
+const TYPE_CLASS={mcq:'qt-mcq',assertion_reason:'qt-ar',match_list:'qt-match',case_based:'qt-case',statement:'qt-stmt',numerical:'qt-num',sequence:'qt-seq',true_false:'qt-tf'};
+let activeFilter='all';
+
+function updateFilterBar(){
+  $('fbar').style.display='flex';
+  for(const[t,n] of Object.entries(typeCounts)){
+    const el=$(`fc-${t}`);if(el)el.textContent=n;
+    const btn=$(`fb-${t}`);
+    if(btn){btn.style.display=n>0||t==='all'?'':'none'}
+  }
+}
+
+// Filter click
+document.addEventListener('click',e=>{
+  const btn=e.target.closest('.fbtn[data-type]');
+  if(!btn)return;
+  activeFilter=btn.dataset.type;
+  document.querySelectorAll('.fbtn').forEach(b=>b.classList.toggle('on',b===btn));
+  document.querySelectorAll('.card[data-qtype]').forEach(c=>{
+    c.style.display=(activeFilter==='all'||c.dataset.qtype===activeFilter)?'':'none';
+  });
+});
+
+function updHead(n){
+  $('rhead').classList.add('on');
+  $('rcnt').textContent=`${n} Question${n!==1?'s':''}`;
+  typeCounts.all=n;
+  updateFilterBar();
+}
+function setP(pct,lbl,log){
+  $('pfill').style.width=pct+'%';
+  if(lbl)$('plbl').textContent=lbl;
+  $('ppct').textContent=pct+'%';
+  if(log)$('plog').textContent=log;
+}
+function setLog(m){$('plog').textContent=m}
+function showErr(step,m){
+  const b=$(`err${step}`),t=$(`etxt${step}`);
+  if(b&&t){b.classList.add('on');t.textContent=m}
+}
+function hideErr(step){const b=$(`err${step}`);if(b)b.classList.remove('on')}
+function delay(ms){return new Promise(r=>setTimeout(r,ms))}
+
+function parseArr(text){
+  let c=text.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
+  let d=0,s=-1,e=-1;
+  for(let i=0;i<c.length;i++){
+    if(c[i]==='['&&s===-1){s=i;d=1}
+    else if(c[i]==='['&&s!==-1)d++;
+    else if(c[i]===']'&&s!==-1){d--;if(d===0){e=i;break}}
+  }
+  if(s!==-1&&e!==-1)c=c.slice(s,e+1);
+  return JSON.parse(c);
+}
+function validQ(q){
+  if(!q||typeof q.question!=='string'||q.question.trim().length<5) return false;
+  const t=(q.type||'mcq').toLowerCase();
+  // Assertion-Reason: needs assertion + reason + 4 options
+  if(t==='assertion_reason'){
+    return typeof q.assertion==='string'&&q.assertion.trim().length>3&&
+           typeof q.reason==='string'&&q.reason.trim().length>3&&
+           Array.isArray(q.options)&&q.options.length>=2&&
+           typeof q.correct==='number'&&q.correct>=0&&q.correct<q.options.length;
+  }
+  // Match list: needs list1, list2, options
+  if(t==='match_list'){
+    return Array.isArray(q.list1)&&q.list1.length>0&&
+           Array.isArray(q.list2)&&q.list2.length>0&&
+           Array.isArray(q.options)&&q.options.length>=2&&
+           typeof q.correct==='number'&&q.correct>=0&&q.correct<q.options.length;
+  }
+  // Statement: needs statements array
+  if(t==='statement'){
+    return Array.isArray(q.statements)&&q.statements.length>=1&&
+           Array.isArray(q.options)&&q.options.length>=2&&
+           typeof q.correct==='number'&&q.correct>=0&&q.correct<q.options.length;
+  }
+  // Case-based: needs passage
+  if(t==='case_based'){
+    return typeof q.passage==='string'&&q.passage.trim().length>10&&
+           Array.isArray(q.options)&&q.options.length>=2&&
+           typeof q.correct==='number'&&q.correct>=0&&q.correct<q.options.length;
+  }
+  // True/False: 2 options OK
+  if(t==='true_false'){
+    return Array.isArray(q.options)&&q.options.length>=2&&
+           typeof q.correct==='number'&&q.correct>=0&&q.correct<q.options.length;
+  }
+  // Default (mcq, numerical, sequence, etc.)
+  return Array.isArray(q.options)&&q.options.length>=2&&
+    q.options.every(o=>typeof o==='string'&&o.trim().length>0)&&
+    typeof q.correct==='number'&&q.correct>=0&&q.correct<q.options.length;
+}
+function sanitizeId(id){
+  if(!id||typeof id!=='string')return null;
+  return id.replace(/[^A-Z0-9]/gi,'').toUpperCase().slice(0,8)||null;
+}
+function esc(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function markStep(n,state){
+  const ind=$(`s${n}-ind`),num=$(`s${n}n`);
+  if(!ind)return;
+  ind.className='step'+(state?' '+state:'');
+  if(state==='done'&&num)num.textContent='✓';
+}
+</script>
+</body>
+</html>
