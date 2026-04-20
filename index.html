@@ -289,7 +289,7 @@ main{max-width:960px;margin:0 auto;padding:28px 18px 80px;position:relative;z-in
       </div>
 
       <button class="btn-green" id="next-btn">
-        ✅ Text Looks Good — Generate MCQs →
+        ✅ Text Looks Good — Extract Questions →
       </button>
     </div>
 
@@ -322,19 +322,26 @@ main{max-width:960px;margin:0 auto;padding:28px 18px 80px;position:relative;z-in
 
     <div class="panel">
       <div class="ptitle">📋 Dataset Metadata</div>
-      <div class="g3">
+      <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:12px">
         <div class="field">
           <label>Subject Name</label>
-          <input type="text" id="subname" placeholder="e.g. Business Studies"/>
+          <input type="text" id="subname" placeholder="e.g. Accountancy"/>
         </div>
         <div class="field">
           <label>Subject Code</label>
-          <input type="text" id="subcode" placeholder="e.g. BS" maxlength="6"/>
+          <input type="text" id="subcode" placeholder="e.g. AC" maxlength="6"/>
         </div>
         <div class="field">
-          <label>Part / Exam</label>
-          <input type="text" id="partlbl" placeholder="e.g. CUET 2025"/>
+          <label>Year</label>
+          <input type="text" id="yearval" placeholder="e.g. 2026" maxlength="4"/>
         </div>
+        <div class="field">
+          <label>Part / Set</label>
+          <input type="text" id="partlbl" placeholder="e.g. Part 1"/>
+        </div>
+      </div>
+      <div style="margin-top:10px;padding:8px 11px;background:rgba(124,109,250,.05);border:1px solid rgba(124,109,250,.14);border-radius:7px;font-size:11px;color:var(--mu);font-family:'DM Mono',monospace">
+        ID preview: <strong style="color:var(--acc)" id="id-preview">AC-2026-Q01</strong>
       </div>
     </div>
 
@@ -535,6 +542,15 @@ async function extractPDF(file){
 // ══════════════════════════════════════
 
 $('api-key').addEventListener('input',chkGen);
+// Live ID preview
+function updateIdPreview(){
+  const sc=($('subcode').value.trim()||'AC').toUpperCase();
+  const yr=$('yearval').value.trim()||'2026';
+  $('id-preview').textContent=`${sc}-${yr}-Q01`;
+}
+['subcode','yearval'].forEach(id=>{
+  const el=$(id);if(el)el.addEventListener('input',updateIdPreview);
+});
 function chkGen(){$('gen-btn').disabled=!($('api-key').value.trim().length>10)}
 
 // ── API call ──
@@ -552,76 +568,83 @@ async function callAPI(key,model,sys,user){
 }
 
 // ── System prompt ──
-function buildSys(code){
+function buildSys(code, year){
+const qIdExample=`${code}-${year}-Q01`;
+const qIdExample2=`${code}-${year}-Q02`;
 return`You are a CUET question extraction engine. Extract EVERY question from the text — including ALL question types, not just simple MCQs.
 
-CUET question types you MUST extract:
+CUET QUESTION TYPES — extract all of these:
 
-1. MCQ (type="mcq") — Standard 4-option multiple choice
-2. ASSERTION_REASON (type="assertion_reason") — Has "Assertion (A):" and "Reason (R):" followed by 4 options like:
-   (A) Both A and R are true, R is correct explanation
-   (B) Both A and R are true, R is NOT correct explanation
-   (C) A is true, R is false
-   (D) A is false, R is true
-   → Store assertion in "assertion", reason in "reason", options array as the 4 standard A/R choices
+1. MCQ (type="mcq") — Standard 4-option multiple choice question
+2. ASSERTION_REASON (type="assertion_reason") — Has "Assertion (A):" and "Reason (R):" with 4 standard options:
+   A) Both A and R are true, and R is the correct explanation of A
+   B) Both A and R are true, but R is NOT the correct explanation of A
+   C) A is true but R is false
+   D) A is false but R is true
+   → Put assertion text in "assertion" field, reason text in "reason" field
 3. MATCH_LIST (type="match_list") — "Match List I with List II" or "Match the following"
-   → Store List I items in "list1": [{"key":"A","value":"..."}, ...] and List II items in "list2": [{"key":"I","value":"..."}, ...], options are the matching codes like "A-III, B-I, C-II, D-IV"
-4. CASE_BASED (type="case_based") — A passage/case followed by questions
-   → Store passage in "passage", question text is the sub-question
-5. STATEMENT (type="statement") — "Which of the following statements is/are correct?" with numbered statements I, II, III
-   → Store statements in "statements": ["Statement I text", "Statement II text", ...]
-6. NUMERICAL (type="numerical") — Calculation/computation based
-7. SEQUENCE (type="sequence") — "Arrange in correct order" or "Which is the correct sequence"
-8. TRUE_FALSE (type="true_false") — Only 2 options: True/False (still store as 2-item options array)
+   → Put List I entries in "list1": [{"key":"A","value":"..."},...], List II in "list2": [{"key":"I","value":"..."},...]
+   → Options will be matching combinations like "A-III, B-I, C-II, D-IV"
+4. CASE_BASED (type="case_based") — A passage/case study followed by question(s)
+   → Put the full passage text in "passage" field
+5. STATEMENT (type="statement") — "Which of the following statements is/are correct?" with listed statements
+   → Put each statement in "statements": ["Statement I: ...", "Statement II: ...", ...]
+6. NUMERICAL (type="numerical") — Requires calculation, computation, or formula application
+7. SEQUENCE (type="sequence") — "Arrange the following in correct order" type
+8. TRUE_FALSE (type="true_false") — Only 2 options: True / False
 
-Return ONLY a valid JSON array. No markdown, no backticks, zero text outside the JSON array.
+REQUIRED OUTPUT FORMAT — a JSON array of chapter objects:
+[
+  {
+    "chapter_id": "${code}01",
+    "chapter": "Exact chapter or topic name from the text",
+    "questions": [
+      {
+        "id": "${qIdExample}",
+        "type": "mcq",
+        "level": "L2",
+        "difficulty": "medium",
+        "question": "Clean question stem — no option labels, no A/B/C/D prefixes",
+        "options": ["First option text", "Second option text", "Third option text", "Fourth option text"],
+        "correct": 0,
+        "explanation": "Concise explanation of why the correct answer is right (1-2 sentences)",
 
-Output format — each question object:
-{
-  "chapter_id": "${code}01",
-  "chapter": "Topic or chapter name",
-  "questions": [
-    {
-      "id": "${code}01Q01",
-      "type": "mcq",
-      "level": "L2",
-      "difficulty": "medium",
-      "question": "The clean question stem only (no options, no A/B/C/D labels)",
-      "options": ["Option text A", "Option text B", "Option text C", "Option text D"],
-      "correct": 0,
-      "explanation": "Brief explanation (1-2 lines)",
+        "assertion": "ONLY for assertion_reason type — the assertion statement text",
+        "reason": "ONLY for assertion_reason type — the reason statement text",
 
-      // ONLY for assertion_reason:
-      "assertion": "Assertion text here",
-      "reason": "Reason text here",
+        "list1": [{"key":"A","value":"item text"}],
+        "list2": [{"key":"I","value":"item text"}],
 
-      // ONLY for match_list:
-      "list1": [{"key":"A","value":"item"}, {"key":"B","value":"item"}],
-      "list2": [{"key":"I","value":"item"}, {"key":"II","value":"item"}],
+        "passage": "ONLY for case_based type — full passage/case text here",
 
-      // ONLY for case_based:
-      "passage": "The full passage/case text",
+        "statements": ["ONLY for statement type — Statement I text", "Statement II text"]
+      },
+      {
+        "id": "${qIdExample2}",
+        "type": "assertion_reason",
+        ...
+      }
+    ]
+  }
+]
 
-      // ONLY for statement questions:
-      "statements": ["Statement I: ...", "Statement II: ...", "Statement III: ..."]
-    }
-  ]
-}
+IDs MUST follow this exact format: ${code}-${year}-Q01, ${code}-${year}-Q02, ${code}-${year}-Q03 ...
+(subject code, hyphen, year, hyphen, Q, two-digit sequential number across ALL chapters)
 
-TYPE values: mcq | assertion_reason | match_list | case_based | statement | numerical | sequence | true_false
-LEVEL: L1 (recall) | L2 (understanding) | L3 (tricky/multi-step/analytical)
+TYPE values (use exactly): mcq | assertion_reason | match_list | case_based | statement | numerical | sequence | true_false
+LEVEL: L1=recall/definition | L2=understanding/application | L3=analysis/multi-step/tricky
 DIFFICULTY: easy | medium | hard
 
-STRICT RULES:
-1. Extract EVERY question — do NOT skip any type
-2. For MCQ/standard: exactly 4 options, strip prefixes like "1." "(A)" "A."
-3. For true_false: 2 options ["True","False"] or as written
-4. "correct" = 0-based index of the correct option in the options array
-5. Correct Answer line "3." or "(3)" → correct=2; "2" → correct=1; "A"/"(A)" → correct=0
-6. Strip: Solution, Quick Tip, Step 1/2/3, Final Answer, page numbers, headers
-7. Group by detectable topic; else all in one chapter "${code}01"
-8. IDs: chapter_id = ${code}+2digit, question id = chapter_id + Q + 2digit
-9. Output ONLY the JSON array starting with [`;
+EXTRACTION RULES:
+1. Extract EVERY single question — do NOT skip assertion-reason, match, statement, or case types
+2. Strip all option label prefixes: "1." "(1)" "A." "(A)" "(i)" etc — keep only the option text
+3. "correct" = 0-based index: first option=0, second=1, third=2, fourth=3
+4. Reading "Correct Answer: 3" → correct=2 | "Correct Answer: A" → correct=0 | "Correct Answer: (2)" → correct=1
+5. STRIP completely: Solution, Quick Tip, Step 1/2/3, Final Answer, page numbers, section headers
+6. Group questions by chapter/topic if detectable from context; otherwise use one chapter "${code}01"
+7. chapter_id format: ${code} + 2-digit number e.g. ${code}01, ${code}02
+8. Sequential question numbering: Q01, Q02 ... Q10, Q11 ... across the ENTIRE output (not per chapter)
+9. Output ONLY the raw JSON array — start with [ and end with ] — no markdown, no backticks, no text outside JSON`;
 }
 
 // ── Chunk text on question boundaries ──
@@ -666,14 +689,18 @@ $('gen-btn').addEventListener('click',async()=>{
   const model=$('model').value;
   const maxQ=parseInt($('maxq').value)||30;
   const code=($('subcode').value.trim()||'XX').toUpperCase().replace(/\s/g,'');
+  const year=$('yearval').value.trim()||new Date().getFullYear().toString();
   const rawText=$('raw-text').value.trim();
+
+  // Global question counter for sequential IDs across all chapters
+  let globalQNum=0;
 
   try{
     setP(5,'Splitting text into chunks…','');
     const chunks=chunkOnQuestions(rawText,6000);
     setP(10,'',`Split into ${chunks.length} chunk(s)`);
 
-    const sys=buildSys(code);
+    const sys=buildSys(code,year);
     let total=0;
     const useChunks=Math.min(chunks.length,Math.ceil(maxQ/4)+5);
 
@@ -686,7 +713,7 @@ $('gen-btn').addEventListener('click',async()=>{
       while(attempts<2){
         try{
           const resp=await callAPI(key,model,sys,
-            `Extract all MCQs from this text. Every question must be extracted:\n\n${chunks[i]}`);
+            `Extract ALL questions from this text. Include MCQ, Assertion-Reason, Match List, Case-Based, Statement, Numerical, Sequence, and True/False types:\n\n${chunks[i]}`);
           const arr=parseArr(resp);
           if(!Array.isArray(arr))break;
 
@@ -704,21 +731,23 @@ $('gen-btn').addEventListener('click',async()=>{
             for(const q of co.questions){
               if(total>=maxQ)break;
               if(!validQ(q))continue;
-              q.id=`${cid}Q${String(chap.questions.length+1).padStart(2,'0')}`;
+              // Always assign correct format: AC-2026-Q01
+              globalQNum++;
+              q.id=`${code}-${year}-Q${String(globalQNum).padStart(2,'0')}`;
               chap.questions.push(q);
               total++;gNum++;
               renderCard(q,gNum,cid);
               updHead(total);
             }
           }
-          break; // success
+          break;
         }catch(ae){
           attempts++;
           if(attempts>=2){setLog(`⚠ Chunk ${i+1} failed: ${ae.message}`);}
           else{setLog(`Retrying chunk ${i+1}…`);await delay(1200);}
         }
       }
-      if(i<useChunks-1)await delay(300); // small pause between calls
+      if(i<useChunks-1)await delay(300);
     }
 
     setP(100,'Done!',`${total} questions across ${chapData.length} chapter(s)`);
@@ -864,19 +893,21 @@ function renderCard(q,n,cid){
 // ── Export ──
 $('exbtn').addEventListener('click',()=>{
   if(!chapData.length)return;
-  const total=chapData.reduce((a,c)=>a+c.questions.length,0);
   const sc=($('subcode').value.trim()||'XX').toUpperCase();
+  const yr=$('yearval').value.trim()||new Date().getFullYear().toString();
+  const part=$('partlbl').value.trim();
   const out={
     subject:$('subname').value.trim()||'Unknown',
     subject_code:sc,
-    part:$('partlbl').value.trim()||'Part 1',
-    total_questions_this_part:total,
+    year:yr,
+    ...(part?{part}:{}),
+    total_questions:chapData.reduce((a,c)=>a+c.questions.length,0),
     chapters:chapData
   };
   const b=new Blob([JSON.stringify(out,null,2)],{type:'application/json'});
   const u=URL.createObjectURL(b);
   const a=document.createElement('a');
-  a.href=u;a.download=`${sc.toLowerCase()}-mcqs-${Date.now()}.json`;
+  a.href=u;a.download=`${sc.toLowerCase()}-${yr}-questions.json`;
   a.click();URL.revokeObjectURL(u);
   markStep(3,'done');
 });
